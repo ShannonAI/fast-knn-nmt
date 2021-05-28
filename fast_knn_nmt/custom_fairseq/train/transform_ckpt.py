@@ -1,0 +1,43 @@
+# encoding: utf-8
+"""
+
+
+
+@desc: transform a transformer ckpt to tgtransformer
+
+"""
+
+import os
+
+import torch
+from fairseq import checkpoint_utils
+from fast_knn_nmt.knn.pq_wrapper import TorchPQCodec
+import faiss
+
+# WMT de-en gpu11
+TRANSFORMER_CKPT = "/data/yuxian/models/wmt19/wmt19-de-en/wmt19.de-en.ffn8192.pt"
+OUT_CKPT = "/data/yuxian/train_logs/wmt19-law-quantize/checkpoint_best.pt"
+QUANTIZER_PATH = "/data/yuxian/datasets/multi_domain_paper/law/bpe/de-en-bin/quantizer-decoder.new"
+
+state = checkpoint_utils.load_checkpoint_to_cpu(TRANSFORMER_CKPT)
+
+# load quantizer
+QUANTIZER = TorchPQCodec(index=faiss.read_index(QUANTIZER_PATH))
+
+state["model"]["encoder.quantizer.centroids_torch"] = QUANTIZER.centroids_torch
+state["model"]["encoder.quantizer.norm2_centroids_torch"] = QUANTIZER.norm2_centroids_torch
+if QUANTIZER.pre_torch:
+    state["model"]["encoder.quantizer.A"] = QUANTIZER.A
+    state["model"]["encoder.quantizer.b"] = QUANTIZER.b
+
+# KNN-Transformer
+state["args"].arch = "knn-transformer"
+state["args"].task = "knn-translation"
+
+# tgt-knn-transformer
+# state["args"].arch = "tgt-knn-transformer"
+# state["args"].task = "translation"
+
+os.makedirs(os.path.dirname(OUT_CKPT), exist_ok=True)
+torch.save(state, OUT_CKPT)
+print(f"Saved ckpt to {OUT_CKPT}")
