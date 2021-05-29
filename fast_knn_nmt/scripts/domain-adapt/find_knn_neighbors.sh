@@ -13,7 +13,7 @@ TGT_LANG="en"
 
 
 # 1. build datastores for each token
-python gcn_nmt/knn/buid_ds.py \
+python fast_knn_nmt/knn/buid_ds.py \
 --data_dir $DATA_DIR \
 --prefix $PREFIX \
 --lang $SRC_LANG \
@@ -24,8 +24,8 @@ python gcn_nmt/knn/buid_ds.py \
 DS_DIRS=$DATA_DIR/train_${SRC_LANG}_data_stores
 metric="cosine"
 index="auto"
-python gcn_nmt/knn/run_index_build.py \
-  --dstore-dir $DS_DIRS  --workers 32 \
+python fast_knn_nmt/knn/run_index_build.py \
+  --dstore-dir $DS_DIRS  --workers 0 \
   --index-type $index --chunk-size 100000 \
   --subdirs --metric $metric --use-gpu --overwrite
 
@@ -34,17 +34,17 @@ python gcn_nmt/knn/run_index_build.py \
 metric="cosine"
 k=512
 for mode in "test"; do
-python gcn_nmt/knn/find_knn_neighbors.py \
+python fast_knn_nmt/knn/find_knn_neighbors.py \
 --data_dir $DATA_DIR \
 --prefix $PREFIX \
 --lang $SRC_LANG --use_memory --offset_chunk 1000000 \
---mode $mode --workers 0 --k $k --metric $metric --nprobe 32
+--mode $mode --workers 0 --k $k --metric $metric --nprobe 32 --use-gpu
 done
 
 
 # quantize decoder feature
 index="PQ128"
-python gcn_nmt/knn/quantize_features2.py \
+python fast_knn_nmt/knn/quantize_features2.py \
 --data-dir $DATA_DIR  \
 --prefix $PREFIX \
 --lang $TGT_LANG \
