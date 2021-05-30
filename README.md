@@ -54,6 +54,7 @@ To find token-neighbors on source side, we do the following steps:
 2.  build faiss search index for each `Datastore` for approximate nearest neighbors(ANN) search
 3. do KNN search using each token-representation of test dataset
 4. quantize token-representations on target side. (quantization of source features have already be done at step 2)
+
 The example scripts for find knn neighbors for domain-adaptation/WMT data are listed below:
 * For Domain Adaptation Dataset:
 `fast_knn_nmt/scripts/domain-adapt/find_knn_neighbors.sh`
@@ -66,6 +67,7 @@ The example scripts for find knn neighbors for domain-adaptation/WMT data are li
 To convert pretrained fairseq Seq2Seq ckpt to do inference, use `fast_knn_nmt/custom_fairseq/train/transform_ckpt.py`
 This script would change the task/model name of pretrained fairseq checkpoint, and adding quantizer to the 
 model.
+
 Note that you should change `TRANSFORMER_CKPT`, `TRANSFORMER_CKPT` and `QUANTIZER_PATH` to your
 own path. 
 
@@ -78,3 +80,5 @@ See `fast_knn_nmt/scripts/domain-adapt/reproduce_${domain}.sh`, where `domain` c
 `fast_knn_nmt/scripts/wmt-en-fr/inference.sh`
 * For WMT19 de-en:
 `fast_knn_nmt/scripts/wmt19-de-en/inference.sh`
+
+Note that you should change `USER_DIR`, `DATA_DIR`, `OUT_DIR`, and `DETOKENIZER` to your own path.

@@ -2,8 +2,8 @@ export PYTHONPATH="$PWD"
 
 #DOMAIN="it"
 #DOMAIN="medical"
-#DOMAIN="law"
-DOMAIN="koran"
+DOMAIN="law"
+#DOMAIN="koran"
 #DOMAIN="subtitles"
 
 DATA_DIR="/data/yuxian/datasets/multi_domain_paper/${DOMAIN}/bpe/de-en-bin"  # change this path to your own data path.
@@ -27,7 +27,7 @@ index="auto"
 python fast_knn_nmt/knn/run_index_build.py \
   --dstore-dir $DS_DIRS  --workers 0 \
   --index-type $index --chunk-size 100000 \
-  --subdirs --metric $metric --use-gpu --overwrite
+  --subdirs --metric $metric  --overwrite --subdirs-range "0,100"
 
 
 # 3. find knn neighbors for each token
@@ -44,6 +44,7 @@ done
 
 # quantize decoder feature
 index="PQ128"
+#index="OPQ128_512,,PQ128"
 python fast_knn_nmt/knn/quantize_features2.py \
 --data-dir $DATA_DIR  \
 --prefix $PREFIX \
