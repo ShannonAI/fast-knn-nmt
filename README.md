@@ -73,12 +73,19 @@ own path.
 
 
 ### Inference
-The example scripts for find knn neighbors for domain-adaptation/WMT data are listed below:
+The example scripts of inference for domain-adaptation/WMT data are listed below:
 * For Domain Adaptation Dataset:
-See `fast_knn_nmt/scripts/domain-adapt/reproduce_${domain}.sh`, where `domain` could be `it, medical, koran, law, subtitles`
+See `fast_knn_nmt/scripts/domain-adapt/reproduce_${domain}.sh`, where `domain` could be `it`, `medical`, `koran`, `law` or `subtitles`.
 * For WMT14 en-fr:
 `fast_knn_nmt/scripts/wmt-en-fr/inference.sh`
 * For WMT19 de-en:
 `fast_knn_nmt/scripts/wmt19-de-en/inference.sh`
 
 Note that you should change `USER_DIR`, `DATA_DIR`, `OUT_DIR`, and `DETOKENIZER` to your own path.
+
+
+## Contact
+If you have any issues or questions about this repo, feel free to contact yuxian_meng@shannonai.com.
+
+## License
+[Apache License 2.0](./LICENSE) 
