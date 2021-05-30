@@ -171,7 +171,7 @@ if __name__ == '__main__':
     xb = torch.rand(1000, 1024).to(dev)
     (tcodec.encode(xb).cpu().numpy() == codec.sa_encode(xb.cpu().numpy())).all()
     # test decode
-    codes = torch.randint(256, size=(1000, 128), dtype=torch.uint8).to(dev)
+    codes = torch.randint(256, size=(10000, 128), dtype=torch.uint8).to(dev)
     np.allclose(
         tcodec.decode(codes).cpu().numpy(),
         codec.sa_decode(codes.cpu().numpy()),

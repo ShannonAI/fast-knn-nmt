@@ -25,8 +25,8 @@ MULTI_DOMAIN="/data/yuxian/datasets/multi_domain_paper"  # The downloaded multi-
 
 # choose a domain
 #DOMAIN="it"
-#DOMAIN="koran"
-DOMAIN="law"
+DOMAIN="koran"
+#DOMAIN="law"
 #DOMAIN="medical"
 #DOMAIN="subtitles"
 
@@ -68,7 +68,8 @@ BPE_CODE="/data/yuxian/models/wmt19/wmt19-de-en/ende30k.fastbpe.code"  # change 
 echo "use pretrained bpe ${BPE_CODE}"
 
 
-FAST_BPE=fastBPE/fast
+#FAST_BPE=fastBPE/fast
+FAST_BPE=/data/nfsdata2/nlp_application/utils/fastBPE-master/fast
 for L in $src $tgt; do
     for f in train.$L valid.$L test.$L; do
         echo "apply_bpe.py to ${f}..."
@@ -83,7 +84,7 @@ DATA_DIR=$prep
 SRC="de"
 TGT="en"
 
-for subset in "train" "valid" "test"; do
+for subset in "train" "valid"; do
   src_file=$DATA_DIR/$subset.$SRC
   tgt_file=$DATA_DIR/$subset.$TGT
   out_file=$DATA_DIR/$subset.$SRC-$TGT
@@ -91,11 +92,13 @@ for subset in "train" "valid" "test"; do
 done
 
 # 2. merge train/valid/test file
-cat $DATA_DIR/train.$SRC-$TGT $DATA_DIR/valid.$SRC-$TGT $DATA_DIR/test.$SRC-$TGT > $DATA_DIR/merge.$SRC-$TGT
+cat $DATA_DIR/train.$SRC-$TGT $DATA_DIR/valid.$SRC-$TGT> $DATA_DIR/merge.$SRC-$TGT
 
 # 3. run fast-align
-FAST_ALIGN="fast_align/build/fast_align"
-ATOOLS="fast_align/build/atools"
+#FAST_ALIGN="fast_align/build/fast_align"
+#ATOOLS="fast_align/build/atools"
+FAST_ALIGN="/data/nfsdata2/nlp_application/utils/fast_align/build/fast_align"
+ATOOLS="/data/nfsdata2/nlp_application/utils/fast_align/build/atools"
 input=$DATA_DIR/merge.$SRC-$TGT
 forward=$DATA_DIR/merge.forward.align
 backward=$DATA_DIR/merge.backward.align
@@ -107,14 +110,14 @@ $ATOOLS -i $forward -j $backward -c grow-diag-final-and > $bidirect
 # 4. split merged fast-align to get train/valid/test align files
 train_num=$(wc -l $DATA_DIR/train.$SRC | awk -F ' ' '{print $1}')
 valid_num=$(wc -l $DATA_DIR/valid.$SRC | awk -F ' ' '{print $1}')
-test_num=$(wc -l $DATA_DIR/test.$SRC | awk -F ' ' '{print $1}')
+#test_num=$(wc -l $DATA_DIR/test.$SRC | awk -F ' ' '{print $1}')
 
 val_start=$((train_num+1))
 val_end=$((train_num + valid_num))
 val_end_plus=$((val_end+1))
 
 head -n $train_num $bidirect >$DATA_DIR/train.bidirect.align
-tail -n $test_num $bidirect >$DATA_DIR/test.bidirect.align
+#tail -n $test_num $bidirect >$DATA_DIR/test.bidirect.align
 sed -n "${val_start},${val_end}p;${val_end_plus}q" $bidirect >$DATA_DIR/valid.bidirect.align
 
 
@@ -153,9 +156,9 @@ cat $LOG.pred | sacrebleu $orig/test.$tgt
 export PYTHONPATH="$PWD"
 for subset in "test" "valid" "train"; do
 TEXT=$prep
-MODEL="/data/yuxian/models/wmt19/wmt19-de-en"  # change your model path here
+MODEL="/data/yuxian/models/wmt19/wmt19-de-en/wmt19.de-en.ffn8192.pt"  # change your model path here
 CUDA_VISIBLE_DEVICES=0 python fairseq_cli/extract_feature_mmap.py $TEXT/de-en-bin \
     --gen-subset $subset --store_decoder --store_encoder \
-    --path $MODEL/wmt19.de-en.ffn8192.pt \
+    --path $MODEL \
     --batch-size 4 --beam 1 --remove-bpe --score-reference
 done

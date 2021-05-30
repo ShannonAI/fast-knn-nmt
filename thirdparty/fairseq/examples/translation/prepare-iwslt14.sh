@@ -125,5 +125,5 @@ subset="train"
 TEXT="/data/nfsdata2/nlp_application/datasets/nmt/iwslt/iwslt14/iwslt14.tokenized.de-en/de-en-bin"
 CUDA_VISIBLE_DEVICES=0 python fairseq_cli/extract_feature_mmap.py $TEXT \
     --gen-subset $subset --store_encoder --store_decoder --store_attn \
-    --path /data/yuxian/train_logs/gcn-nmt/fairseq_gnmt_baseline/checkpoint_best.pt \
+    --path /data/yuxian/train_logs/fast-knn-nmt/fairseq_gnmt_baseline/checkpoint_best.pt \
     --batch-size 128 --beam 1 --remove-bpe --score-reference

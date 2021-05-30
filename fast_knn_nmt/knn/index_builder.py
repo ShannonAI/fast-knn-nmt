@@ -57,16 +57,18 @@ class IndexBuilder:
         if dstore_size < 3000:
             return "IDMap,,Flat"
         clusters = min(int(4 * math.sqrt(dstore_size)), dstore_size // 30, 131072)
-        if dstore_size < 30000:
-            # return "OPQ128_512,,PQ128"  # todo try HNSW
+        if dstore_size < 30000:  # todo try HNSW
+            # return "OPQ128_512,,PQ128"
             # return ",,PQ128"  # todo try HNSW
-            return f",IVF{clusters},Flat"
-            # return "IDMap,,Flat"
+            # return f",IVF{clusters},Flat"
+            return "IDMap,,Flat"
         # if dstore_size < 10**6:
         #     return f"OPQ128_512,IVF{clusters},"
         # return f"OPQ128_512,IVF{clusters}_HNSW32,PQ128"
-        return f"OPQ32_128,IVF{clusters}_HNSW32,PQ32"  # todo: try 64_128
-        # return f"OPQ128_512,IVF{clusters}_HNSW32,PQ128"
+        if dstore_size < 10 ** 6:
+            # return f"OPQ128_512,IVF{clusters},PQ128"  # todo: try 64_128
+            return f"OPQ256_1024,IVF{clusters},PQ256"  # todo: try 64_128
+        return f"OPQ128_1024,IVF{clusters}_HNSW32,PQ128"
 
     def build(self, index_type: str, chunk_size=1000000, seed=None, start: int = 0, overwrite=False):
         """build faiss index"""

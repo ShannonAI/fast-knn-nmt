@@ -198,8 +198,8 @@ fairseq-preprocess --source-lang en --target-lang de --srcdict /userhome/yuxian/
 
 
 # fairseq train
-#MODEL_DIR="/data/yuxian/train_logs/gcn-nmt/wmt/baseline_from_scratch_20210406"
-MODEL_DIR="/data/yuxian/train_logs/gcn-nmt/wmt/wmt17_baseline_from_scratch_20210407_share"
+#MODEL_DIR="/data/yuxian/train_logs/fast-knn-nmt/wmt/baseline_from_scratch_20210406"
+MODEL_DIR="/data/yuxian/train_logs/fast-knn-nmt/wmt/wmt17_baseline_from_scratch_20210407_share"
 mkdir -p $MODEL_DIR
 LOG=$MODEL_DIR/log.txt
 CUDA_VISIBLE_DEVICES=0,1,2,3 fairseq-train $TEXT/en-de-bin \
@@ -221,8 +221,8 @@ CUDA_VISIBLE_DEVICES=0,1,2,3 fairseq-train $TEXT/en-de-bin \
 # fairseq generate, to check model validity
 TEXT=/userhome/yuxian/data/nmt/wmt17_en_de_from_scratch
 #MODEL="/userhome/yuxian/data/nmt/wmt19.en-de.joined-dict.single_model/model.pt"
-MODEL="/userhome/yuxian/train_logs/gcn-nmt/wmt17/wmt17_baseline_from_scratch_20210407/checkpoint_best.pt"
-#LOG=/data/yuxian/train_logs/gcn-nmt/wmt/baseline_from_scratch_20210406/wmt14-en-de.out
+MODEL="/userhome/yuxian/train_logs/fast-knn-nmt/wmt17/wmt17_baseline_from_scratch_20210407/checkpoint_best.pt"
+#LOG=/data/yuxian/train_logs/fast-knn-nmt/wmt/baseline_from_scratch_20210406/wmt14-en-de.out
 fairseq-generate $TEXT/en-de-bin \
     --gen-subset "test" \
     --path $MODEL \
@@ -237,7 +237,7 @@ export PYTHONPATH="$PWD"
 subset="test"
 #TEXT="/userhome/yuxian/data/nmt/wmt14_en_de"
 TEXT=/userhome/yuxian/data/nmt/wmt17_en_de_from_scratch
-MODEL="/userhome/yuxian/train_logs/gcn-nmt/wmt17/wmt17_baseline_from_scratch_20210407/checkpoint_best.pt"
+MODEL="/userhome/yuxian/train_logs/fast-knn-nmt/wmt17/wmt17_baseline_from_scratch_20210407/checkpoint_best.pt"
 #MODEL="/userhome/yuxian/data/nmt/wmt19.en-de.joined-dict.single_model/model.pt"
 
 python fairseq_cli/extract_features.py $TEXT/en-de-bin \
@@ -263,7 +263,7 @@ subset="test"
 subset="valid"
 subset="train"
 TEXT=/userhome/yuxian/data/nmt/wmt17_en_de_from_scratch/en-de-bin
-MODEL="/userhome/yuxian/train_logs/gcn-nmt/wmt17/wmt17_baseline_from_scratch_20210407/checkpoint_best.pt"
+MODEL="/userhome/yuxian/train_logs/fast-knn-nmt/wmt17/wmt17_baseline_from_scratch_20210407/checkpoint_best.pt"
 feature="decoder"
 
 CUDA_VISIBLE_DEVICES=1 python fairseq_cli/extract_feature_mmap.py $TEXT \

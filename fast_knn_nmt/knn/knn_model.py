@@ -27,11 +27,12 @@ class KNNModel(object):
 
     def __init__(self, index_file, dstore_dir, probe: int = 32, no_load_keys: bool = False,
                  metric_type: str = "do_not_recomp_l2", sim_func: str = None, k: int = 1024, cuda: int = -1,
-                 use_memory=False):
+                 use_memory=False, efsearch=32):
 
         self.index_file = index_file
         self.dstore_dir = dstore_dir
         self.probe = probe
+        self.efsearch = efsearch
         self.no_load_keys = no_load_keys
         self.use_memory = use_memory
         t = time()
@@ -63,11 +64,13 @@ class KNNModel(object):
             raise ValueError(f'Dstore path not found: {self.dstore_dir}')
 
         start = time()
-        LOGGING.info(f'Reading faiss index and set nprobe to {self.probe}...')
+        LOGGING.info(f'Reading faiss index, with nprobe={self.probe},  efSearch={self.efsearch} ...')
         index = faiss.read_index(self.index_file, faiss.IO_FLAG_ONDISK_SAME_DIR)
         LOGGING.info(f'Reading faiss of size {index.ntotal} index took {time() - start} s')
-        index.nprobe = self.probe
-        # raise ValueError
+        # index.nprobe = self.probe
+        faiss.extract_index_ivf(index).nprobe = self.probe
+        # index.hnsw.efSearch = efSearch # todo figure out how efSearch works
+        # index.efSearch = self.efsearch
         return index
 
     def get_knns(self, queries: Union[torch.Tensor, np.array], k: int = 0) -> Tuple[np.array, np.array]:

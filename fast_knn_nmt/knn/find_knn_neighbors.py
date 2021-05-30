@@ -157,7 +157,10 @@ def main(data_dir, mode="train", prefix="de-en", lang="de", k=5, use_gpu=False,
                         batch_queris = torch.from_numpy(batch_queris).cuda()
                     t = time()
                     if metric == "cosine":
-                        batch_queris = batch_queris / np.sqrt(np.sum(batch_queris ** 2, axis=-1, keepdims=True))
+                        if not use_gpu:
+                            batch_queris = batch_queris / np.sqrt(np.sum(batch_queris ** 2, axis=-1, keepdims=True))
+                        else:
+                            batch_queris = batch_queris / torch.sqrt(torch.sum(batch_queris ** 2, dim=-1, keepdim=True))
                     # [bsz, k]
                     knn_dists, knns = knn_model.get_knns(queries=batch_queris, k=token_k)
                     search_time.value += (time() - t)
@@ -167,14 +170,12 @@ def main(data_dir, mode="train", prefix="de-en", lang="de", k=5, use_gpu=False,
 
         if workers <= 1:
             for token_idx in range(len(dictionary)):
-            # for token_idx in range(100): # debug
-                # todo: how to deal with <unk>?
+            # for token_idx in [5]:
                 find_token_neighbor(token_idx, search_time=search_time)
         else:
             pool = Pool(workers)
             jobs = []
             for token_idx in range(len(dictionary)):
-            # for token_idx in range(100):  # debug 只统计前1//10的
                 job = pool.apply_async(func=find_token_neighbor,
                                        kwds={"token_idx": token_idx, "search_time": search_time})
                 jobs.append(job)
