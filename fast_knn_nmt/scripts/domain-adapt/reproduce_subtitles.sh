@@ -2,7 +2,8 @@ export PYTHONPATH=$PWD
 USER_DIR="/home/mengyuxian/fast-knn-nmt/fast_knn_nmt/custom_fairseq"
 DOMAIN="subtitles"
 DATA_DIR="/data/yuxian/datasets/multi_domain_paper/${DOMAIN}/bpe/de-en-bin"
-OUT_DIR="/data/yuxian/train_logs/wmt19"
+OUT_DIR="/data/yuxian/train_logs/wmt19-${DOMAIN}-quantize"
+QUANTIZER=$DATA_DIR/quantizer-decoder.new
 
 a=0.3
 k=512
@@ -14,11 +15,11 @@ sim_metric="cosine"
 neighbor_metric="cosine"
 
 
-PRED=$OUT_DIR/${DOMAIN}-0520-${subset}_bleu.gen_a${a}_t${t}_k${k}_sim_metric${sim_metric}_top${top}_ngram${ngram}_nmetric${neighbor_metric}_newknn
+PRED=$OUT_DIR/${DOMAIN}-0528-${subset}_bleu.gen_a${a}_t${t}_k${k}_sim_metric${sim_metric}_top${top}_ngram${ngram}_nmetric${neighbor_metric}_newknn
 CUDA_VISIBLE_DEVICES=2 python fast_knn_nmt/custom_fairseq/train/generate.py $DATA_DIR --gen-subset $subset --quantize  \
     --task knn-translation --neighbor_metric $neighbor_metric \
     --path $OUT_DIR/checkpoint_best.pt  \
-    --user-dir $USER_DIR --model-overrides "{'link_ratio': $a, 'link_temperature': $t, 'topk': ${top}, 'sim_metric': '${sim_metric}'}" \
+    --user-dir $USER_DIR --model-overrides "{'link_ratio': $a, 'link_temperature': $t, 'topk': ${top}, 'sim_metric': '${sim_metric}', 'quantizer_path':'$QUANTIZER' } " \
     --batch-size 1 --beam 5 --remove-bpe --num-workers 8 \
     --max-neighbors $k  --extend_ngram $ngram  >$PRED 2>&1 & tail -f $PRED
 
