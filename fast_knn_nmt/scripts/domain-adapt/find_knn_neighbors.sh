@@ -26,9 +26,8 @@ metric="cosine"
 index="auto"
 python fast_knn_nmt/knn/run_index_build.py \
   --dstore-dir $DS_DIRS  --workers 0 \
-  --index-type $index --chunk-size 100000 \
-  --subdirs --metric $metric  --overwrite --subdirs-range "0,100"
-
+  --index-type $index --chunk-size 200000 \
+  --subdirs --metric $metric  --overwrite
 
 # 3. find knn neighbors for each token
 metric="cosine"
