@@ -1,7 +1,7 @@
 # Fast KNN NMT
 
 ## Introduction
-This repo contains code for paper [todo](todo)
+This repo contains code for paper [Fast Nearest Neighbor Machine Translation](https://arxiv.org/abs/2105.14528)
 
 ## Results
 * SacreBLEU results for WMT
