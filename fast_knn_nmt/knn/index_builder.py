@@ -39,16 +39,12 @@ class IndexBuilder:
     def trained_file(self):
         """get trained index file path"""
         file_path = os.path.join(self.output_dir, f"faiss_store.trained.{self.metric}{self.suffix}")
-        # if self.use_gpu:
-        #     file_path += ".gpu"  # todo don't need this?
         return file_path
 
     @property
     def faiss_file(self):
         """get final index file path"""
         file_path = os.path.join(self.output_dir, f"faiss_store.{self.metric}{self.suffix}")
-        # if self.use_gpu:
-        #     file_path += ".gpu"  # todo don't need this?echo $
         return file_path
 
     def get_auto_index_type(self):
@@ -57,18 +53,15 @@ class IndexBuilder:
         if dstore_size < 3000:
             return "IDMap,,Flat"
         clusters = min(int(4 * math.sqrt(dstore_size)), dstore_size // 30, 131072)
-        if dstore_size < 30000:  # todo try HNSW
-            # return "OPQ128_512,,PQ128"
-            # return ",,PQ128"  # todo try HNSW
-            # return f",IVF{clusters},Flat"
+        if dstore_size < 30000:
             return "IDMap,,Flat"
         # if dstore_size < 10**6:
         #     return f"OPQ128_512,IVF{clusters},"
         # return f"OPQ128_512,IVF{clusters}_HNSW32,PQ128"
         if dstore_size < 10 ** 6:
             # return f"OPQ128_512,IVF{clusters},PQ128"  # todo: try 64_128
-            return f"OPQ256_1024,IVF{clusters},PQ256"  # todo: try 64_128
-        return f"OPQ128_1024,IVF{clusters}_HNSW32,PQ128"
+            return f"OPQ128_{self.dstore.hidden_size},IVF{clusters},PQ128"  # todo: try 64_128
+        return f"OPQ128_{self.dstore.hidden_size},IVF{clusters}_HNSW32,PQ128"
 
     def build(self, index_type: str, chunk_size=1000000, seed=None, start: int = 0, overwrite=False):
         """build faiss index"""

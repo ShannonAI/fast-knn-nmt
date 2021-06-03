@@ -27,7 +27,7 @@ class KNNModel(object):
 
     def __init__(self, index_file, dstore_dir, probe: int = 32, no_load_keys: bool = False,
                  metric_type: str = "do_not_recomp_l2", sim_func: str = None, k: int = 1024, cuda: int = -1,
-                 use_memory=False, efsearch=32):
+                 use_memory=False, efsearch=8):
 
         self.index_file = index_file
         self.dstore_dir = dstore_dir
@@ -56,7 +56,10 @@ class KNNModel(object):
         if cuda != -1:
             res = faiss.StandardGpuResources()
             self.index = faiss.index_cpu_to_gpu(res, cuda, self.index)
+            # except Exception as e:
+            #     LOGGING.info(f"index {self.index_file} does not support GPU", exc_info=1)
         self.use_memory = use_memory
+        self.cuda = cuda
 
     def setup_faiss(self):
         """setup faiss index"""
@@ -68,9 +71,12 @@ class KNNModel(object):
         index = faiss.read_index(self.index_file, faiss.IO_FLAG_ONDISK_SAME_DIR)
         LOGGING.info(f'Reading faiss of size {index.ntotal} index took {time() - start} s')
         # index.nprobe = self.probe
-        faiss.extract_index_ivf(index).nprobe = self.probe
-        # index.hnsw.efSearch = efSearch # todo figure out how efSearch works
-        # index.efSearch = self.efsearch
+        # faiss.extract_index_ivf(index).nprobe = self.probe
+        try:
+            faiss.ParameterSpace().set_index_parameter(index, "nprobe", self.probe)
+            faiss.ParameterSpace().set_index_parameter(index, "quantizer_efSearch", self.efsearch)
+        except Exception as e:
+            LOGGING.warn(f"faiss index {self.index_file} does not have parameter nprobe or efSearch")
         return index
 
     def get_knns(self, queries: Union[torch.Tensor, np.array], k: int = 0) -> Tuple[np.array, np.array]:
@@ -84,7 +90,7 @@ class KNNModel(object):
             knns: knn ids. np.array of shape [num, k]
         """
         k = k or self.k
-        if isinstance(queries, torch.Tensor):
+        if isinstance(queries, torch.Tensor) and self.cuda != -1:
             queries = queries.detach().cpu().float().data.numpy()
         dists, knns = self.index.search(queries, k=k)
         return dists, knns
