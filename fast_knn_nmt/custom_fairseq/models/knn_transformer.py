@@ -367,7 +367,7 @@ class KNNTransformerDecoder(TransformerDecoder):
         elif self.sim_metric == "l2":
             features = features.unsqueeze(-2)  # [bsz, tgt_len, 1, h]
             knn_feats = knn_feats.unsqueeze(1)  # [bsz, 1, knn_num, h]
-            scores = ((features - knn_feats) ** 2).sum(-1).sqrt()  # todo memory concern: put them in chunk
+            scores = -((features - knn_feats) ** 2).sum(-1)  # todo memory concern: put them in chunk
         elif self.sim_metric == "ip":
             knn_feats = knn_feats.transpose(1, 2)  # [bsz, h, knn_num]
             scores = torch.bmm(features, knn_feats)  # [bsz, tgt_len, knn_num]

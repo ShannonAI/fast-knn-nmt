@@ -1,3 +1,4 @@
+# Note: koran domain is small, so we do not need to quantize features
 export PYTHONPATH=$PWD
 USER_DIR="/home/mengyuxian/fast-knn-nmt/fast_knn_nmt/custom_fairseq"
 DOMAIN="koran"

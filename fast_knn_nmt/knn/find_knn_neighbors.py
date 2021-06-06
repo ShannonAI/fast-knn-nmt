@@ -8,20 +8,20 @@
 """
 
 import argparse
+import json
+from multiprocessing.dummy import Pool, Value
+from time import time
+
 import numpy as np
 from fairseq.data import data_utils, MMapIndexedDataset
 from fairseq.tasks.translation import TranslationTask
 from tqdm import tqdm
-import torch
-import json
-from time import time
 
-from fast_knn_nmt.data.utils import warmup_mmap_file, load_token_2d_offsets
 from fast_knn_nmt.data.path_utils import *
+from fast_knn_nmt.data.utils import warmup_mmap_file, load_token_2d_offsets, get_token_freq
 from fast_knn_nmt.knn.knn_model import KNNModel
 from fast_knn_nmt.utils.logger import get_logger
-from multiprocessing.dummy import Pool, Value
-# from multiprocessing import Pool, Value
+
 
 LOGGING = get_logger(__name__)
 
@@ -51,6 +51,8 @@ def main(data_dir, mode="train", prefix="de-en", lang="de", k=5, use_gpu=False,
     else:
         raise ValueError(f"lang {lang} not in any side of prefix {prefix}")
 
+    freq = get_token_freq(data_dir, neighbor_subset, prefix, src_lang, dictionary, dataset)
+
     feature_mmap_file = feature_path(data_dir, mode, type=langtype)
 
     hidden_size = json.load(open(os.path.join(data_dir, f"{mode}-features", f"all.mmap.{langtype}.json")))["hidden_size"]
@@ -60,9 +62,6 @@ def main(data_dir, mode="train", prefix="de-en", lang="de", k=5, use_gpu=False,
         warmup_mmap_file(feature_mmap_file)
     mmap_features = np.memmap(feature_mmap_file, dtype=np.float32, mode='r',
                               shape=(total_token_num, hidden_size))
-
-    # if use_memory:
-    #     mmap_features = np.array(mmap_features)
 
     # store neighbors for each token
     neighbor_file = token_neighbor_path(data_dir, mode, lang, k, metric, global_neighbor=global_neighbor)
@@ -97,8 +96,6 @@ def main(data_dir, mode="train", prefix="de-en", lang="de", k=5, use_gpu=False,
             else:
                 batch_queris = mmap_features[start: end]  # [bsz, hidden]
                 t = time()
-                if use_gpu:
-                    batch_queris = torch.from_numpy(batch_queris).cuda()
                 if metric == "cosine":
                     batch_queris = batch_queris / np.sqrt(np.sum(batch_queris ** 2, axis=-1, keepdims=True))
                 # [bsz, k]
@@ -119,7 +116,7 @@ def main(data_dir, mode="train", prefix="de-en", lang="de", k=5, use_gpu=False,
         else:
             LOGGING.warning("We strongly recommend to use --use_memory to load feature to memory "
                             "to accelerate reading feartures")
-        def find_token_neighbor(token_idx, search_time, batch_size=128):
+        def find_token_neighbor(token_idx, search_time, batch_size=1024, token_use_gpu=False):
             # build data store for every token
             sent_ids = token_2d_offsets[token_idx][:, 0]
             positions = sent_offsets[sent_ids] + token_2d_offsets[token_idx][:, 1]
@@ -134,11 +131,16 @@ def main(data_dir, mode="train", prefix="de-en", lang="de", k=5, use_gpu=False,
                 knn_model = KNNModel(
                     index_file=index_file,
                     dstore_dir=os.path.join(data_dir, f"{neighbor_subset}_{lang}_data_stores{'_'+str(max_sent)+'sent' if max_sent else ''}", f"token_{token_idx}"),
-                    no_load_keys=True, use_memory=True, cuda=-1 if not use_gpu else 0,
+                    no_load_keys=True, use_memory=True, cuda=-1 if not token_use_gpu else 0,
                     probe=nprobe)
-            except (FileNotFoundError, RuntimeError):
-                LOGGING.warn(f"skip token {token_idx}-{dictionary.symbols[token_idx]}, "
-                             f"this may cause by the fact that it does not appear in training set")
+            except FileNotFoundError:
+                LOGGING.error(f"skip token {token_idx}-{dictionary.symbols[token_idx]},"
+                              f"which does not exist in training dataset")
+                pbar.update(positions.shape[0])
+                return
+            except RuntimeError:
+                LOGGING.error(f"skip token {token_idx}-{dictionary.symbols[token_idx]}",
+                              exc_info=1)
                 pbar.update(positions.shape[0])
                 return
 
@@ -151,17 +153,11 @@ def main(data_dir, mode="train", prefix="de-en", lang="de", k=5, use_gpu=False,
                 if batch_positions[-1] < pretrained_num:
                     neighbors[batch_positions, :token_k] = pretrained_neighbors[batch_positions, :token_k]
                 else:
-                    # batch_queris = queries[start: end]  # [bsz, hidden]
-                    batch_queris = features[batch_positions]  # [bsz, hidden]
-                    if use_gpu:
-                        batch_queris = torch.from_numpy(batch_queris).cuda()
-                    t = time()
+                    batch_queris = features[batch_positions-o_start]  # [bsz, hidden]
                     if metric == "cosine":
-                        if not use_gpu:
-                            batch_queris = batch_queris / np.sqrt(np.sum(batch_queris ** 2, axis=-1, keepdims=True))
-                        else:
-                            batch_queris = batch_queris / torch.sqrt(torch.sum(batch_queris ** 2, dim=-1, keepdim=True))
+                        batch_queris = batch_queris / np.sqrt(np.sum(batch_queris ** 2, axis=-1, keepdims=True))
                     # [bsz, k]
+                    t = time()
                     knn_dists, knns = knn_model.get_knns(queries=batch_queris, k=token_k)
                     search_time.value += (time() - t)
                     neighbors[batch_positions, : token_k] = knn_model.vals[knns]
@@ -170,14 +166,17 @@ def main(data_dir, mode="train", prefix="de-en", lang="de", k=5, use_gpu=False,
 
         if workers <= 1:
             for token_idx in range(len(dictionary)):
-            # for token_idx in [5]:
-                find_token_neighbor(token_idx, search_time=search_time)
+                find_token_neighbor(token_idx, search_time=search_time,
+                                    token_use_gpu=use_gpu
+                                    )
         else:
             pool = Pool(workers)
             jobs = []
             for token_idx in range(len(dictionary)):
                 job = pool.apply_async(func=find_token_neighbor,
-                                       kwds={"token_idx": token_idx, "search_time": search_time})
+                                       kwds={"token_idx": token_idx,
+                                             "search_time": search_time,
+                                             "token_use_gpu": use_gpu})
                 jobs.append(job)
 
             pool.close()

@@ -6,7 +6,7 @@ OUT_DIR="/data/yuxian/train_logs/wmt19-law-quantize"
 QUANTIZER=$DATA_DIR/quantizer-decoder.new
 
 
-a=0.7
+a=0.55
 k=512
 top=64
 t=0.015
@@ -16,7 +16,7 @@ sim_metric="cosine"
 neighbor_metric="cosine"
 
 
-PRED=$OUT_DIR/${DOMAIN}-0529-${subset}_bleu.gen_a${a}_t${t}_k${k}_sim_metric${sim_metric}_top${top}_newngram${ngram}_nmetric${neighbor_metric}  # score-reference
+PRED=$OUT_DIR/${DOMAIN}-0529-${subset}_bleu.gen_a${a}_t${t}_k${k}_sim_metric${sim_metric}_top${top}_newngram${ngram}_nmetric${neighbor_metric}
 CUDA_VISIBLE_DEVICES=2 python fast_knn_nmt/custom_fairseq/train/generate.py $DATA_DIR --gen-subset $subset --quantize \
     --task knn-translation --neighbor_metric $neighbor_metric \
     --path $OUT_DIR/checkpoint_best.pt  \
