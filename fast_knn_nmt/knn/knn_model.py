@@ -54,10 +54,12 @@ class KNNModel(object):
         self.sim_func = sim_func
         self.index = self.setup_faiss()
         if cuda != -1:
-            res = faiss.StandardGpuResources()
-            self.index = faiss.index_cpu_to_gpu(res, cuda, self.index)
-            # except Exception as e:
-            #     LOGGING.info(f"index {self.index_file} does not support GPU", exc_info=1)
+            try:
+                res = faiss.StandardGpuResources()
+                self.index = faiss.index_cpu_to_gpu(res, cuda, self.index)
+            except Exception as e:
+                LOGGING.info(f"index {self.index_file} does not support GPU")
+            cuda = -1
         self.use_memory = use_memory
         self.cuda = cuda
 
@@ -70,8 +72,6 @@ class KNNModel(object):
         LOGGING.info(f'Reading faiss index, with nprobe={self.probe},  efSearch={self.efsearch} ...')
         index = faiss.read_index(self.index_file, faiss.IO_FLAG_ONDISK_SAME_DIR)
         LOGGING.info(f'Reading faiss of size {index.ntotal} index took {time() - start} s')
-        # index.nprobe = self.probe
-        # faiss.extract_index_ivf(index).nprobe = self.probe
         try:
             faiss.ParameterSpace().set_index_parameter(index, "nprobe", self.probe)
             faiss.ParameterSpace().set_index_parameter(index, "quantizer_efSearch", self.efsearch)
@@ -90,7 +90,7 @@ class KNNModel(object):
             knns: knn ids. np.array of shape [num, k]
         """
         k = k or self.k
-        if isinstance(queries, torch.Tensor) and self.cuda != -1:
+        if isinstance(queries, torch.Tensor):
             queries = queries.detach().cpu().float().data.numpy()
         dists, knns = self.index.search(queries, k=k)
         return dists, knns
