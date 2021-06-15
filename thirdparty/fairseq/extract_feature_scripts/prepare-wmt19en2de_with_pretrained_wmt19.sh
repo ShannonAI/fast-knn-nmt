@@ -259,7 +259,7 @@ fairseq-preprocess --source-lang de --target-lang en \
     --trainpref $TEXT/train --validpref $TEXT/valid --testpref $TEXT/test \
     --align-suffix bidirect.align \
     --joined-dictionary --srcdict $joint_dict \
-    --destdir $TEXT/de-en-bin-align \
+    --destdir $TEXT/de-en-bin \
     --workers 16
 
 
