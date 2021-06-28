@@ -26,7 +26,9 @@ def fairseq_dataset_path(data_dir, mode, prefix, lang):
     return os.path.join(data_dir, f"{mode}.{prefix}.{lang}")
 
 
-def token_neighbor_path(data_dir, mode, lang, k, metric="l2", global_neighbor=False):
+def token_neighbor_path(data_dir, mode, lang, k, metric="l2", global_neighbor=False, cluster=False):
+    if (cluster):
+        return os.path.join(data_dir, f"{mode}.{lang}.cluster.token_neighbors_{metric}{'_all' if global_neighbor else ''}.mmap")
     return os.path.join(data_dir, f"{mode}.{lang}.token_neighbors_{metric}{'_all' if global_neighbor else ''}.mmap.{k}")
 
 

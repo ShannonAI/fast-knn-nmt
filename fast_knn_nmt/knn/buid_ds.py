@@ -193,8 +193,11 @@ def build_token_dstores(data_dir, subset="train", prefix="de-en", src_lang="de",
             datastore.save_info()
 
         if workers <= 1:
+            '''
             for token_idx in range(token_start, token_end):
                 build_dstore(token_idx)
+            '''
+            build_dstore(2)
 
         # multi-threading
         else:
@@ -222,7 +225,7 @@ def build_token_dstores(data_dir, subset="train", prefix="de-en", src_lang="de",
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
 
-    parser.add_argument("--data_dir", type=str, required=True, help="path to binary dataset directory")
+    parser.add_argument("--data_dir", type=str, required=False, help="path to binary dataset directory")
     parser.add_argument("--prefix", type=str, default="de-en", help="prefix of binary file")
     parser.add_argument("--lang", type=str, default="de", help="source_lang")
     parser.add_argument("--mode", type=str, default="train", help="train/valid/test")
@@ -243,6 +246,17 @@ if __name__ == '__main__':
                         help="change ds vals from sent_idx and token_idx to labels.")
 
     args = parser.parse_args()
+    '''
+
+    args.data_dir = "/data/wangshuhe/fast_knn/multi_domain_paper/koran/bpe/de-en-bin"
+    args.prefix = "de-en"
+    args.lang = "de"
+    args.mode = "train"
+    args.workers = 1
+    args.offset_chunk = 1000000
+    args.use_memory = True
+
+    '''
     data_dir = args.data_dir
     if args.all_in_one:
         build_all_in_one_dstore(data_dir=data_dir, prefix=args.prefix, lang=args.lang, subset=args.mode,

@@ -23,9 +23,10 @@ from .path_utils import *
 LOGGING = get_logger(__name__)
 
 
-def warmup_mmap_file(path, n=1000, verbose=True):
+def warmup_mmap_file(path, n=1000, verbose=True, use_log=True):
     megabytes = 1024 * 1024
-    LOGGING.info(f"Warming up file {path}")
+    if (use_log):
+        LOGGING.info(f"Warming up file {path}")
     total = math.floor(os.path.getsize(path)/megabytes)
     pbar = tqdm(total=total, desc=f"Warm up") if verbose else None
     with open(path, 'rb') as stream:

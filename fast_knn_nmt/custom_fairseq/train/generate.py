@@ -397,6 +397,23 @@ def cli_main():
     parser = options.get_generation_parser()
     parser.add_argument("--ignore_eos", action="store_true", help="ignore eos when evaluating ppl", default=False)
     args = options.parse_args_and_arch(parser)
+    '''
+    args.data = "/data/wangshuhe/fast_knn/multi_domain_paper/medical/bpe/de-en-bin"
+    args.gen_subset = "test"
+    args.quantize = True
+    args.task = "knn-translation"
+    args.neighbor_metric = "cosine"
+    args.path = "/data/wangshuhe/fast_knn/train_logs/medical/checkpoint_best.pt"
+    args.user_dir = "/home/wangshuhe/shuhework/fast-knn-nmt/fast_knn_nmt/custom_fairseq"
+    args.model_overrides = "{'link_ratio': $a, 'link_temperature': $t, 'topk': ${top}, 'sim_metric': '${sim_metric}', 'quantizer_path':'$QUANTIZER' } "
+    args.batch_size = 1
+    args.beam = 5
+    args.remove_bpe = True
+    args.num_workers = 8
+    args.max_neighbors = 512
+    args.extend_ngram = 0
+    args.use_tgt_cluster = True
+    '''
     main(args)
 
 

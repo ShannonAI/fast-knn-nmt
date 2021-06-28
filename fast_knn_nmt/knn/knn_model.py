@@ -15,6 +15,7 @@ import faiss
 import numpy as np
 import torch
 from torch.nn import functional as F
+import json
 
 from fast_knn_nmt.utils.logger import get_logger
 from .data_store import DataStore
@@ -27,7 +28,7 @@ class KNNModel(object):
 
     def __init__(self, index_file, dstore_dir, probe: int = 32, no_load_keys: bool = False,
                  metric_type: str = "do_not_recomp_l2", sim_func: str = None, k: int = 1024, cuda: int = -1,
-                 use_memory=False, efsearch=8):
+                 use_memory=False, efsearch=8, use_cluster=False):
 
         self.index_file = index_file
         self.dstore_dir = dstore_dir
@@ -40,14 +41,38 @@ class KNNModel(object):
                                                     use_memory=use_memory,
                                                     no_load_keys=no_load_keys)
         LOGGING.info(f'Reading datastore took {time() - t} s')
-
-        self.dstore_size = self.data_store.dstore_size
-        self.hidden_size = self.data_store.hidden_size
-        self.vocab_size = self.data_store.vocab_size
-        self.dstore_fp16 = self.data_store.dstore_fp16
-        self.vals = self.data_store.vals
-        if not no_load_keys:
-            self.keys = self.data_store.keys
+        if (not use_cluster):
+            self.dstore_size = self.data_store.dstore_size
+            self.hidden_size = self.data_store.hidden_size
+            self.vocab_size = self.data_store.vocab_size
+            self.dstore_fp16 = self.data_store.dstore_fp16
+            self.vals = self.data_store.vals
+            if not no_load_keys:
+                self.keys = self.data_store.keys
+        else:
+            
+            def get_json_info(dir_):
+                new_line = ""
+                with open(dir_, "r") as f:
+                    for line in f:
+                        new_line += line
+                    f.close()
+                return json.loads(new_line)
+            
+            self.cluster_info = get_json_info(os.path.join(dstore_dir, "cluster_info.json"))
+            self.dstore_size = self.cluster_info['n_cluster']
+            self.hidden_size = self.cluster_info['hidden_size']
+            self.dstore_fp16 = self.cluster_info['dstore_fp16']
+            self.vals = self.data_store.vals
+            self.vals_id = get_json_info(os.path.join(dstore_dir, "cluster_key_offset.json"))
+            self.each_val = []
+            self.each_val_num = self.cluster_info['cluster_size']
+            for id_list in self.vals_id:
+                point_list = []
+                for id_ in id_list:
+                    point_list.append(self.vals[id_[0]])
+                point_list = np.array(point_list, dtype=np.int32)
+                self.each_val.append(point_list)
 
         self.k = k
         self.metric_type = metric_type

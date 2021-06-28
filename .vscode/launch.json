@@ -1,0 +1,18 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Python: Current File",
+            "type": "python",
+            "request": "launch",
+            "program": "${file}",
+            "console": "integratedTerminal",
+            "args": ["/data/wangshuhe/fast_knn/multi_domain_paper/medical/bpe/de-en-bin", "--gen-subset", "test", "--quantize", "--task", "knn-translation", "--neighbor_metric", "cosine", "--path", "/data/wangshuhe/fast_knn/train_logs/medical/checkpoint_best.pt", "--user-dir", "/home/wangshuhe/shuhework/fast-knn-nmt/fast_knn_nmt/custom_fairseq", 
+                    "--model-overrides", "{\"link_ratio\": 0.65, \"link_temperature\": 0.015, \"topk\": 512, \"sim_metric\": \"cosine\", \"quantizer_path\":\"/data/wangshuhe/fast_knn/multi_domain_paper/medical/bpe/de-en-bin/quantizer-decoder.new\" }",
+                    "--batch-size", "1", "--beam", "5", "--remove-bpe", "--num-workers", "8", "--max-neighbors", "512", "--extend_ngram", "0", "--use_tgt_cluster"]
+        }
+    ]
+}

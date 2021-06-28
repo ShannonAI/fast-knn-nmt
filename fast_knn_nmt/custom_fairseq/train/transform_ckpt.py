@@ -15,13 +15,13 @@ from fast_knn_nmt.knn.pq_wrapper import TorchPQCodec
 import faiss
 
 # WMT de-en gpu11
-TRANSFORMER_CKPT = "/data/yuxian/models/wmt19/wmt19-de-en/wmt19.de-en.ffn8192.pt"
+TRANSFORMER_CKPT = "/data/wangshuhe/fast_knn/models/wmt19.de-en.ffn8192.pt"
 # OUT_CKPT = "/data/yuxian/train_logs/wmt19-it-quantize/checkpoint_best.pt"
-OUT_CKPT = "/data/yuxian/train_logs/wmt19-law-quantize/checkpoint_best.pt"
+OUT_CKPT = "/data/wangshuhe/fast_knn/train_logs/medical/checkpoint_best.pt"
 # OUT_CKPT = "/data/yuxian/train_logs/wmt19-subtitles-quantize/checkpoint_best.pt"
 # OUT_CKPT = "/data/yuxian/train_logs/wmt19-medical-quantize/checkpoint_best.pt"
 
-QUANTIZER_PATH = "/data/yuxian/datasets/multi_domain_paper/law/bpe/de-en-bin/quantizer-decoder.new"
+QUANTIZER_PATH = "/data/wangshuhe/fast_knn/multi_domain_paper/medical/bpe/de-en-bin/quantizer-decoder.new"
 # QUANTIZER_PATH = "/data/yuxian/datasets/multi_domain_paper/it/bpe/de-en-bin/quantizer-decoder.new"
 # QUANTIZER_PATH = "/data/yuxian/datasets/multi_domain_paper/medical/bpe/de-en-bin/quantizer-decoder.new"
 # QUANTIZER_PATH = "/data/yuxian/datasets/multi_domain_paper/subtitles/bpe/de-en-bin/quantizer-decoder.new"

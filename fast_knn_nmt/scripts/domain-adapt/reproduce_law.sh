@@ -1,8 +1,8 @@
 export PYTHONPATH=$PWD
-USER_DIR="/home/mengyuxian/fast-knn-nmt/fast_knn_nmt/custom_fairseq"
+USER_DIR="/home/wangshuhe/shuhework/fast-knn-nmt/fast_knn_nmt/custom_fairseq"
 DOMAIN="law"
-DATA_DIR="/data/yuxian/datasets/multi_domain_paper/${DOMAIN}/bpe/de-en-bin"
-OUT_DIR="/data/yuxian/train_logs/wmt19-law-quantize"
+DATA_DIR="/data/wangshuhe/fast_knn/multi_domain_paper/law/bpe/de-en-bin"
+OUT_DIR="/data/wangshuhe/fast_knn/train_logs/law"
 QUANTIZER=$DATA_DIR/quantizer-decoder.new
 
 
@@ -25,7 +25,7 @@ CUDA_VISIBLE_DEVICES=2 python fast_knn_nmt/custom_fairseq/train/generate.py $DAT
     --max-neighbors $k  --extend_ngram $ngram >$PRED 2>&1 & tail -f $PRED
 
 
-DETOKENIZER=/data/nfsdata2/nlp_application/utils/moses_decoder/moses/scripts//tokenizer/detokenizer.perl
+DETOKENIZER=/home/wangshuhe/shuhelearn/mosesdecoder-master/scripts/tokenizer/detokenizer.perl
 awk -F '\t'  '$1 ~ /^H/ {print substr($1, 3) "\t" $3}'  $PRED | sort -k1 -n | awk -F '\t' '{print $2}' | perl $DETOKENIZER -threads 8 -a -l en  >$PRED.pred
-gt_file="/data/yuxian/datasets/multi_domain_paper/${DOMAIN}/test.en"
+gt_file="/data/wangshuhe/fast_knn/multi_domain_paper/${DOMAIN}/test.en"
 cat $PRED.pred | sacrebleu $gt_file

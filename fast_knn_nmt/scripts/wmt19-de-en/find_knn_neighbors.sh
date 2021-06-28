@@ -19,9 +19,10 @@ DS_DIRS=$DATA_DIR/train_${SRC_LANG}_data_stores
 metric="cosine"
 index="auto"
 python fast_knn_nmt/knn/run_index_build.py \
-  --dstore-dir $DS_DIRS  --workers 16 \
+  --dstore-dir $DS_DIRS  --workers 1 \
   --index-type $index --use-gpu --chunk-size 5000000 \
-  --subdirs --metric $metric
+  --subdirs --metric $metric --overwrite \
+  --use-cluster
 
 
 # 3. find knn neighbors for each token
@@ -32,7 +33,9 @@ python fast_knn_nmt/knn/find_knn_neighbors.py \
 --data_dir $DATA_DIR \
 --prefix $PREFIX \
 --lang $SRC_LANG \
---mode $mode --workers 1 --k $k --metric $metric  --use_memory --offset_chunk 1000000 --nprobe 32
+--mode $mode --workers 1 --k $k --metric $metric  --use_memory --offset_chunk 1000000 --nprobe 32 \
+--use-gpu \
+--use-cluster
 
 
 index="PQ128"

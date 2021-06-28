@@ -43,6 +43,8 @@ def main():
     parser.add_argument('--metric', type=str, default="l2", choices=["l2", "ip", "cosine"],
                         help='faiss index metric, l2 for L2 distance, ip for inner product, '
                              'cosine for cosine similarity')
+    parser.add_argument("--use-cluster", action="store_true",
+                        help="if True, use k-means")
     args = parser.parse_args()
     if not args.subdirs:
         all_dirs = [d for d in args.dstore_dir.split(",") if d.strip()]
@@ -88,7 +90,7 @@ def main():
 
 def build(dstore_dir, args):
     try:
-        index_builder = IndexBuilder(dstore_dir=dstore_dir, use_gpu=args.use_gpu, metric=args.metric)
+        index_builder = IndexBuilder(dstore_dir=dstore_dir, use_gpu=args.use_gpu, metric=args.metric, use_cluster=args.use_cluster)
 
         if args.overwrite or not index_builder.exists():
             index_builder.build(index_type=args.index_type, seed=args.seed, chunk_size=args.chunk_size, overwrite=args.overwrite)

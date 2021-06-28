@@ -2,32 +2,32 @@
 # Adapted from https://github.com/facebookresearch/MIXER/blob/master/prepareData.sh
 
 echo 'Cloning Moses github repository (for tokenization scripts)...'
-git clone https://github.com/moses-smt/mosesdecoder.git
+#git clone https://github.com/moses-smt/mosesdecoder.git
 
 echo 'Cloning fastBPE repository (for BPE pre-processing)...'
-git clone https://github.com/glample/fastBPE.git
+#git clone https://github.com/glample/fastBPE.git
 
 echo 'Cloning fast align repository (for alignment of source and target)...'
-git clone https://github.com/clab/fast_align.git
+#git clone https://github.com/clab/fast_align.git
 
 # !!NOTE!!
 # The above two repos need compilation before being used below.
 
 #SCRIPTS=mosesdecoder/scripts
-SCRIPTS=/data/nfsdata2/nlp_application/utils/moses_decoder/moses/scripts/
+SCRIPTS=/home/wangshuhe/shuhelearn/mosesdecoder-master/scripts/
 TOKENIZER=$SCRIPTS/tokenizer/tokenizer.perl
 DETOKENIZER=$SCRIPTS/tokenizer/detokenizer.perl
 NORM_PUNC=$SCRIPTS/tokenizer/normalize-punctuation.perl
 REM_NON_PRINT_CHAR=$SCRIPTS/tokenizer/remove-non-printing-char.perl
 
 
-MULTI_DOMAIN="/data/yuxian/datasets/multi_domain_paper"  # The downloaded multi-domain-paper data at https://github.com/roeeaharoni/unsupervised-domain-clusters
+MULTI_DOMAIN="/data/wangshuhe/fast_knn/multi_domain_paper"  # The downloaded multi-domain-paper data at https://github.com/roeeaharoni/unsupervised-domain-clusters
 
 # choose a domain
 #DOMAIN="it"
-DOMAIN="koran"
+#DOMAIN="koran"
 #DOMAIN="law"
-#DOMAIN="medical"
+DOMAIN="medical"
 #DOMAIN="subtitles"
 
 DATA_DIR=$MULTI_DOMAIN/$DOMAIN
@@ -49,6 +49,7 @@ mkdir -p $token $prep
 mv $orig/dev.$src $orig/valid.$src
 mv $orig/dev.$tgt $orig/valid.$tgt
 
+
 echo "pre-processing train data..."
 for l in $src $tgt; do
     for suffix in "train" "valid" "test"; do
@@ -61,15 +62,16 @@ for l in $src $tgt; do
 done
 
 
+
 # (download fair model) use pretrained bpe
 echo "downaloding fairseq pretrained model"
 #wget https://dl.fbaipublicfiles.com/fairseq/models/wmt19.de-en.ffn8192.tar.gz
-BPE_CODE="/data/yuxian/models/wmt19/wmt19-de-en/ende30k.fastbpe.code"  # change this path to your pretrained bpe file
+BPE_CODE="/data/wangshuhe/fast_knn/models/ende30k.fastbpe.code"  # change this path to your pretrained bpe file
 echo "use pretrained bpe ${BPE_CODE}"
 
 
 #FAST_BPE=fastBPE/fast
-FAST_BPE=/data/nfsdata2/nlp_application/utils/fastBPE-master/fast
+FAST_BPE=/home/wangshuhe/shuhework/fastBPE/fast
 for L in $src $tgt; do
     for f in train.$L valid.$L test.$L; do
         echo "apply_bpe.py to ${f}..."
@@ -91,14 +93,15 @@ for subset in "train" "valid"; do
   paste $src_file $tgt_file | awk -F '\t' '{print $1 " </s> ||| " $2 " </s>"}' > $out_file
 done
 
+
 # 2. merge train/valid/test file
 cat $DATA_DIR/train.$SRC-$TGT $DATA_DIR/valid.$SRC-$TGT> $DATA_DIR/merge.$SRC-$TGT
 
 # 3. run fast-align
 #FAST_ALIGN="fast_align/build/fast_align"
 #ATOOLS="fast_align/build/atools"
-FAST_ALIGN="/data/nfsdata2/nlp_application/utils/fast_align/build/fast_align"
-ATOOLS="/data/nfsdata2/nlp_application/utils/fast_align/build/atools"
+FAST_ALIGN="/home/wangshuhe/shuhework/fast_align/build/fast_align"
+ATOOLS="/home/wangshuhe/shuhework/fast_align/build/atools"
 input=$DATA_DIR/merge.$SRC-$TGT
 forward=$DATA_DIR/merge.forward.align
 backward=$DATA_DIR/merge.backward.align
@@ -136,14 +139,14 @@ fairseq-preprocess --source-lang de --target-lang en \
 
 # fairseq generate, to check model validity
 TEXT=$prep
-MODEL="/data/yuxian/models/wmt19/wmt19-de-en"
+MODEL="/data/wangshuhe/fast_knn/models"
 LOG=$MODEL/eval_bleu_$DOMAIN.out
 CUDA_VISIBLE_DEVICES=3 fairseq-generate $TEXT/de-en-bin \
     --gen-subset "test" \
     --path $MODEL/wmt19.de-en.ffn8192.pt \
     --batch-size 1 --beam 5 --remove-bpe \
     --eval-bleu-detok "moses" --scoring "sacrebleu"  \
-    >$LOG 2>&1 & tail -f $LOG
+    >$LOG
 
 # eval use sacrebleu
 #pip3 install sacrebleu
@@ -156,8 +159,8 @@ cat $LOG.pred | sacrebleu $orig/test.$tgt
 export PYTHONPATH="$PWD"
 for subset in "test" "valid" "train"; do
 TEXT=$prep
-MODEL="/data/yuxian/models/wmt19/wmt19-de-en/wmt19.de-en.ffn8192.pt"  # change your model path here
-CUDA_VISIBLE_DEVICES=0 python fairseq_cli/extract_feature_mmap.py $TEXT/de-en-bin \
+MODEL="/data/wangshuhe/fast_knn/models/wmt19.de-en.ffn8192.pt"  # change your model path here
+CUDA_VISIBLE_DEVICES=2 python fairseq_cli/extract_feature_mmap.py $TEXT/de-en-bin \
     --gen-subset $subset --store_decoder --store_encoder \
     --path $MODEL \
     --batch-size 4 --beam 1 --remove-bpe --score-reference
