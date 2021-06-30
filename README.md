@@ -84,6 +84,17 @@ See `fast_knn_nmt/scripts/domain-adapt/reproduce_${domain}.sh`, where `domain` c
 Note that you should change `USER_DIR`, `DATA_DIR`, `OUT_DIR`, and `DETOKENIZER` to your own path.
 
 
+## Citation
+```latex
+@article{meng2021fast,
+  title={Fast Nearest Neighbor Machine Translation},
+  author={Meng, Yuxian and Li, Xiaoya and Zheng, Xiayu and Wu, Fei and Sun, Xiaofei and Zhang, Tianwei and Li, Jiwei},
+  journal={arXiv preprint arXiv:2105.14528},
+  year={2021}
+}
+```
+
+
 ## Contact
 If you have any issues or questions about this repo, feel free to contact yuxian_meng@shannonai.com.
 
