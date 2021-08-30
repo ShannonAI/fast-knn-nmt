@@ -28,4 +28,4 @@ CUDA_VISIBLE_DEVICES=5 python fast_knn_nmt/custom_fairseq/train/generate.py $DAT
 DETOKENIZER=/userhome/yuxian/fairseq/examples/translation/mosesdecoder/scripts/tokenizer/detokenizer.perl
 FINAL=$PRED+".pred"
 awk -F '\t'  '$1 ~ /^H/ {print substr($1, 3) "\t" $3}'  $PRED | sort -k1 -n | awk -F '\t' '{print $2}' | perl $DETOKENIZER -threads 8 -a -l fr  >$FINAL
-cat $FINAL | sacrebleu -t wmt14 -l en-fr
+cat $FINAL | sacrebleu -t wmt14/full -l en-fr

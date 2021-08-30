@@ -139,3 +139,6 @@ fast_knn_nmt/knn/find_knn_neighbors.py.train.tgt.cluster
 fast_knn_nmt/knn/get_tgt_cluster_and_distance.py
 fast_knn_nmt/knn/k_means.py
 fast_knn_nmt/knn/k_means.py.old
+fast_knn_nmt/scripts/domain-adapt/find_knn_neighbors_medical.sh
+fast_knn_nmt/scripts/domain-adapt/reproduce_medical_01.sh
+fast_knn_nmt/scripts/domain-adapt/reproduce/koran/reproduce_koran.sh
