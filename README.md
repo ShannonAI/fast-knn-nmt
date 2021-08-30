@@ -17,7 +17,7 @@ This repo contains code for paper [Fast Nearest Neighbor Machine Translation](ht
 
 |     Model    |   Medical   |     Law     | IT         | Koran      | Subtitles  | Avg.       |
 |:------------:|:-----------:|:-----------:|------------|------------|------------|------------|
-| base MT      | 37.6        | 45.7        | 38.0       | 16.3       | 29.2       | 33.8       |
+| base MT      | 39.9        | 45.7        | 38.0       | 16.3       | 29.2       | 33.8       |
 | +kNN-MT      | 54.4(+14.5) | 61.8(+16.1) | 45.8(+7.8) | 19.4(+3.1) | 31.7(+2.5) | 42.6(+8.8) |
 | +fast kNN-MT | 53.6(+13.7) | 56.0(+10.3) | 45.5(+7.5) | 21.2(+4.9) | 30.5(+1.3) | 41.4(+7.6) |
 
@@ -82,6 +82,17 @@ See `fast_knn_nmt/scripts/domain-adapt/reproduce_${domain}.sh`, where `domain` c
 `fast_knn_nmt/scripts/wmt19-de-en/inference.sh`
 
 Note that you should change `USER_DIR`, `DATA_DIR`, `OUT_DIR`, and `DETOKENIZER` to your own path.
+
+
+## Citation
+```latex
+@article{meng2021fast,
+  title={Fast Nearest Neighbor Machine Translation},
+  author={Meng, Yuxian and Li, Xiaoya and Zheng, Xiayu and Wu, Fei and Sun, Xiaofei and Zhang, Tianwei and Li, Jiwei},
+  journal={arXiv preprint arXiv:2105.14528},
+  year={2021}
+}
+```
 
 
 ## Contact
