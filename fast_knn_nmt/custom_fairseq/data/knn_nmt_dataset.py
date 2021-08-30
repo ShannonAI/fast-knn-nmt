@@ -507,6 +507,9 @@ class KNNNMTDataset(FairseqDataset):
                     "prev_output_tokens": all_prev_tgts,
                     "knn_feats": pad_knn_feats,  # [bsz, knn_num, h]
                     "knn_labels": pad_knn_labels,  # [bsz, knn_num]
+                    "knn_cluster": None,
+                    "knn_mask": None,
+                    "knn_distance": None
                 },
                 "target": all_tgts,
                 "ntokens": tgt_length

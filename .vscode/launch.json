@@ -2,6 +2,7 @@
     // Use IntelliSense to learn about possible attributes.
     // Hover to view descriptions of existing attributes.
     // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    /*
     "version": "0.2.0",
     "configurations": [
         {
@@ -15,4 +16,38 @@
                     "--batch-size", "1", "--beam", "5", "--remove-bpe", "--num-workers", "8", "--max-neighbors", "512", "--extend_ngram", "0", "--use_tgt_cluster"]
         }
     ]
+    */
+
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Python: Current File",
+            "type": "python",
+            "request": "launch",
+            "program": "${file}",
+            "console": "integratedTerminal",
+            "args": ["--lr", "3e-5", "--max_epochs", "5", "--max_length", "512", "--weight_decay", "0.01", "--hidden_dropout_prob", "0.1",
+                     "--warmup_proportion", "0.001", "--train_batch_size", "1", "--accumulate_grad_batches", "1", "--save_topk", "20",
+                     "--val_check_interval", "0.25", "--save_path", "/data/wangshuhe/ner/bert_result/onto_bert_base_zh", "--bert_path", 
+                     "/data/wangshuhe/ner/models/bert-base-chinese", "--data_dir", "/data/wangshuhe/ner/zh_ner_data/ontonote4/tmp", 
+                     "--file_name", "char.bmes", "--language", "zh", "--gpus", "1"]
+        }
+    ]
+
+    /*
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Python: Current File",
+            "type": "python",
+            "request": "launch",
+            "program": "${file}",
+            "console": "integratedTerminal",
+            "args": ["--bert_path", "/home/wangshuhe/shuhework/chinese_bert/ChineseBERT-base", "--batch_size", "15", "--workers", "4", "--max_length", "275", "--data_dir", "/data/wangshuhe/ner/ner/ontonote4",
+                     "--file_name", "char.bmes", "--path_to_model_hparams_file", "/home/wangshuhe/shuhework/chinese_bert/ChineseBert/ner_result/log/version_1/hparams.yaml", "--checkpoint_path",
+                     "/home/wangshuhe/shuhework/chinese_bert/ChineseBert/ner_result/checkpoint/epoch=9_v1.ckpt", "--datastore_path", "/data/wangshuhe/ner/ner/ontonote4/train-datastore", "--link_temperature",
+                     "0.03", "--link_ratio", "0.2", "--topk", "64"]
+        }
+    ]
+    */
 }

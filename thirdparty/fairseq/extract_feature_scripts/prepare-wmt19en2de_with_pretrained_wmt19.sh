@@ -13,13 +13,13 @@ git clone https://github.com/sortiz/tmxt.git
 # !!NOTE!!
 # The above two repos need compilation before being used below.
 
-SCRIPTS=mosesdecoder/scripts
+SCRIPTS=/userhome/shuhe/shuhelearn/mosesdecoder/scripts
 TOKENIZER=$SCRIPTS/tokenizer/tokenizer.perl
 DETOKENIZER=$SCRIPTS/tokenizer/detokenizer.perl
 CLEAN=$SCRIPTS/training/clean-corpus-n.perl
 NORM_PUNC=$SCRIPTS/tokenizer/normalize-punctuation.perl
 REM_NON_PRINT_CHAR=$SCRIPTS/tokenizer/remove-non-printing-char.perl
-TMXT_SCRIPT=/userhome/yuxian/fairseq/examples/translation/tmxt/tmxt.py
+TMXT_SCRIPT=/userhome/shuhe/shuhelearn/tmxt/tmxt.py
 
 
 URLS=(
@@ -53,7 +53,7 @@ CORPORA=(
 )
 
 
-OUTDIR=/userhome/yuxian/data/nmt/wmt19_en_de_fairseq  # !Set your own path here!
+OUTDIR=/userhome/shuhe/fast_knn_nmt/data/wmt19_en_de  # !Set your own path here!
 
 
 if [ ! -d "$SCRIPTS" ]; then
@@ -66,7 +66,7 @@ tgt=en
 lang=de-en
 prep=$OUTDIR
 tmp=$prep/tmp
-orig=orig
+orig=origg
 
 mkdir -p $orig $tmp $prep
 
@@ -76,6 +76,15 @@ for ((i=0;i<${#URLS[@]};++i)); do
     file=${FILES[i]}
     if [ -f $file ]; then
         echo "$file already exists, skipping download"
+        if [ ${file: -4} == ".tgz" ]; then
+            tar zxvf $file
+        elif [ ${file: -4} == ".tar" ]; then
+            tar xvf $file
+        elif [ ${file: -4} == ".zip" ]; then
+            unzip $file
+        elif [ ${file: -3} == ".gz" ]; then
+            gzip -d $file
+        fi
     else
         url=${URLS[i]}
         wget "$url"
@@ -111,11 +120,11 @@ awk -F "\t" '{print $1}'  en-de.bicleaner07.tsv >en-de.bicleaner07.en
 awk -F "\t" '{print $2}'  en-de.bicleaner07.tsv >en-de.bicleaner07.de
 
 
-pip install fasttext
-wget https://dl.fbaipublicfiles.com/fasttext/supervised-models/lid.176.bin
+#pip install fasttext
+#wget https://dl.fbaipublicfiles.com/fasttext/supervised-models/lid.176.bin
 
-filter_py=./fairseq_cli/fasttext_filter.py    # !Set your own path here!
-LANG_MODEL=./lid.176.bin
+filter_py=/userhome/shuhe/fast_knn_nmt/fast-knn-nmt/thirdparty/fairseq/fairseq_cli/fasttext_filter.py    # !Set your own path here!
+LANG_MODEL=/userhome/shuhe/fast_knn_nmt/fast-knn-nmt/thirdparty/fairseq/lid.176.bin
 
 for f in "${CORPORA[@]}"; do
   python $filter_py \
@@ -138,7 +147,7 @@ for l in $src $tgt; do
         cat $orig/$f.$l.langid_filter | \
             perl $NORM_PUNC $l | \
             perl $REM_NON_PRINT_CHAR | \
-            perl $TOKENIZER -threads 8 -a -l $l >> $tmp/train.tags.$lang.tok.$l
+            perl $TOKENIZER -threads 32 -a -l $l >> $tmp/train.tags.$lang.tok.$l
     done
 done
 
@@ -154,13 +163,13 @@ for l in $src $tgt; do
         sed -e 's/<seg id="[0-9]*">\s*//g' | \
         sed -e 's/\s*<\/seg>\s*//g' | \
         sed -e "s/\’/\'/g" | \
-    perl $TOKENIZER -threads 8 -a -l $l > $tmp/valid.$l
+    perl $TOKENIZER -threads 32 -a -l $l > $tmp/valid.$l
 
     grep '<seg id' $orig/dev/newstest2016-deen-$t.$l.sgm | \
     sed -e 's/<seg id="[0-9]*">\s*//g' | \
     sed -e 's/\s*<\/seg>\s*//g' | \
     sed -e "s/\’/\'/g" | \
-    perl $TOKENIZER -threads 8 -a -l $l > $tmp/valid.$l
+    perl $TOKENIZER -threads 32 -a -l $l > $tmp/valid.$l
 
     echo ""
 done
@@ -177,7 +186,7 @@ for l in $src $tgt; do
         sed -e 's/<seg id="[0-9]*">\s*//g' | \
         sed -e 's/\s*<\/seg>\s*//g' | \
         sed -e "s/\’/\'/g" | \
-    perl $TOKENIZER -threads 8 -a -l $l > $tmp/test.$l
+    perl $TOKENIZER -threads 32 -a -l $l > $tmp/test.$l
     echo ""
 done
 
@@ -191,7 +200,7 @@ done
 # download pretrained model!
 # wget https://dl.fbaipublicfiles.com/fairseq/models/wmt19.de-en.ffn8192.tar.gz
 
-BPE_CODE="/userhome/yuxian/data/nmt/wmt19.en-de.joined-dict.single_model/bpecodes"  # !Set your own path here!
+BPE_CODE="/userhome/shuhe/fast_knn_nmt/models/ende30k.fastbpe.code"  # !Set your own path here!
 echo "use pretrained bpe ${BPE_CODE}"
 
 
@@ -199,7 +208,7 @@ echo "use pretrained bpe ${BPE_CODE}"
 for L in $src $tgt; do
     for f in train.$L valid.$L test.$L; do
         echo "apply_bpe.py to ${f}..."
-        ./fastBPE/fast applybpe $tmp/bpe.$f $tmp/$f $BPE_CODE
+        /userhome/shuhe/shuhelearn/fastBPE/fast applybpe $tmp/bpe.$f $tmp/$f $BPE_CODE
     done
 done
 
@@ -228,8 +237,8 @@ done
 cat $DATA_DIR/train.$SRC-$TGT $DATA_DIR/valid.$SRC-$TGT > $DATA_DIR/merge.$SRC-$TGT
 
 # 3. run fast-align
-FAST_ALIGN="fast_align/build/fast_align"
-ATOOLS="fast_align/build/atools"
+FAST_ALIGN="/userhome/shuhe/shuhelearn/fast_align/build/fast_align"
+ATOOLS="/userhome/shuhe/shuhelearn/fast_align/build/atools"
 input=$DATA_DIR/merge.$SRC-$TGT
 forward=$DATA_DIR/merge.forward.align
 backward=$DATA_DIR/merge.backward.align
@@ -253,34 +262,34 @@ sed -n "${val_start},${val_end}p;${val_end_plus}q" $bidirect >$DATA_DIR/valid.bi
 
 
 # fairseq preprocess
-TEXT="/userhome/yuxian/data/nmt/wmt19_en_de_fairseq"
-joint_dict="/userhome/yuxian/data/nmt/wmt19.de-en.joined-dict.single_model/dict.en.txt"
+TEXT="/userhome/shuhe/fast_knn_nmt/data/wmt19_en_de"
+joint_dict="/userhome/shuhe/fast_knn_nmt/models/dict.en.txt"
 fairseq-preprocess --source-lang de --target-lang en \
     --trainpref $TEXT/train --validpref $TEXT/valid --testpref $TEXT/test \
     --align-suffix bidirect.align \
     --joined-dictionary --srcdict $joint_dict \
-    --destdir $TEXT/de-en-bin-align \
-    --workers 16
+    --destdir $TEXT/de-en-bin \
+    --workers 32
 
 
 # fairseq generate(score ppl), to check model validity
-TEXT="/userhome/yuxian/data/nmt/wmt19_en_de_fairseq"
-MODEL="/userhome/yuxian/data/nmt/wmt19.de-en.joined-dict.single_model"
+TEXT="/userhome/shuhe/fast_knn_nmt/data/wmt19_en_de"
+MODEL="/userhome/shuhe/fast_knn_nmt/models"
 LOG=$MODEL/eval_bleu_bsz1.out
 CUDA_VISIBLE_DEVICES=0 fairseq-generate $TEXT/de-en-bin \
     --gen-subset "test" --score-reference \
-    --path $MODEL/model.pt \
+    --path $MODEL/wmt19.de-en.ffn8192.pt \
     --batch-size 1 --beam 5 --remove-bpe \
     --eval-bleu-detok "moses" --scoring "sacrebleu"  \
-    >$LOG 2>&1 & tail -f $LOG
+    >$LOG 2>&1
 
 # extract-features
 export PYTHONPATH="$PWD"
 for subset in "test" "valid" "train"; do
-TEXT="/userhome/yuxian/data/nmt/wmt19_en_de_fairseq"
-MODEL="/userhome/yuxian/data/nmt/wmt19.de-en.joined-dict.single_model"
+TEXT="/userhome/shuhe/fast_knn_nmt/data/wmt19_en_de"
+MODEL="/userhome/shuhe/fast_knn_nmt/models"
 CUDA_VISIBLE_DEVICES=0 python fairseq_cli/extract_feature_mmap.py $TEXT/de-en-bin \
     --gen-subset $subset --store_decoder --store_encoder \
-    --path $MODEL/model.pt \
+    --path $MODEL/wmt19.de-en.ffn8192.pt \
     --batch-size 64 --beam 1 --remove-bpe --score-reference
 done

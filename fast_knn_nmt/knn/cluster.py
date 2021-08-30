@@ -1,3 +1,12 @@
+# encoding: utf-8
+"""
+
+
+
+@desc: k-means in source / target side
+
+"""
+
 import os
 import argparse
 import json
@@ -16,7 +25,7 @@ def get_info(data_store):
         f.close()
     return json.loads(new_line)
 
-def build_cluster(data_store, cluster_size, n_iter=20, use_gpu=False, use_tgt_cluster=False, queue=None):
+def build_cluster(data_store, cluster_size, n_iter=100, use_gpu=False, queue=None):
     info = get_info(data_store)
     key_file = os.path.join(data_store, "keys.npy")
 
@@ -32,9 +41,20 @@ def build_cluster(data_store, cluster_size, n_iter=20, use_gpu=False, use_tgt_cl
     n_cluster = info['dstore_size'] // cluster_size
     if (n_cluster * cluster_size != info['dstore_size']):
         n_cluster += 1
-    
+    '''
     k_means = faiss.Kmeans(d=info['hidden_size'], k=n_cluster, niter=n_iter, verbose=True, gpu=use_gpu)
     k_means.train(train_in_memory)
+    '''
+
+    clus = faiss.Clustering(info['hidden_size'], n_cluster)
+    clus.seed = np.random.randint(1234)
+    clus.niter = n_iter
+    clus.max_points_per_centroid = 10000000
+    index = faiss.IndexFlatL2(info['hidden_size'])
+    if use_gpu:
+        index = faiss.index_cpu_to_all_gpus(index, ngpu=faiss.get_num_gpus())
+    clus.train(train_in_memory, index)
+    
 
     cluster_file = os.path.join(data_store, "cluster_center.npy")
     cluster_mmap = np.memmap(cluster_file, 
@@ -42,22 +62,26 @@ def build_cluster(data_store, cluster_size, n_iter=20, use_gpu=False, use_tgt_cl
                      mode="w+",
                      shape=(n_cluster, info['hidden_size']))
 
-    cluster_mmap[:] = k_means.centroids[:]
+    #cluster_mmap[:] = k_means.centroids[:]
+    cluster_mmap[:] = faiss.vector_to_array(clus.centroids).reshape(n_cluster, info['hidden_size'])[:]
     
     center_has = [[] for i in range(n_cluster)]
     
-    D, labels = k_means.index.search(train_in_memory, 1)
+    #D, labels = k_means.index.search(train_in_memory, 1)
+    D, labels = index.search(train_in_memory, 1)
     for i in range(info['dstore_size']):
         center_has[int(labels[i][0])].append((i, float(D[i][0])))
 
     def takeSecond(elem):
         return elem[1]
 
+    '''
     for i in range(n_cluster):
         if (len(center_has[i]) > cluster_size):
             center_has[i].sort(key=takeSecond)
             center_has[i] = center_has[i][:cluster_size]
-    
+    '''
+
     cluster_key_file = os.path.join(data_store, "cluster_key_offset.json")
     json.dump(center_has, open(cluster_key_file, "w"),
                   sort_keys=True, indent=4, ensure_ascii=False)
@@ -71,7 +95,6 @@ def build_cluster(data_store, cluster_size, n_iter=20, use_gpu=False, use_tgt_cl
     }
     json.dump(cluster_info, open(os.path.join(data_store, "cluster_info.json"), "w"),
                   sort_keys=True, indent=4, ensure_ascii=False)
-    print("========")
     if queue is not None:
         queue.put(1)
 
@@ -83,41 +106,28 @@ def main():
     parser.add_argument('--num-workers', type=int, default=0, help="thread_num")
     parser.add_argument("--use_gpu", default=False, action="store_true",
                         help="to run k-means on gpu")
-    parser.add_argument("--use_tgt_cluster", default=False, action="store_true",
-                        help="to cluster in target tokens")
     
     args = parser.parse_args()
 
-    '''
-    args.dstore_dir = "/data/wangshuhe/fast_knn/multi_domain_paper/koran/bpe/de-en-bin/train_de_data_stores"
-    args.cluster_size = 512
-    '''
     file_list = []
     files = os.listdir(args.dstore_dir)  
     for f in files:    
         file = os.path.join(args.dstore_dir, f)    
         if os.path.isdir(file):
             file_list.append(file)
-    
-    #file_list = ['/data/wangshuhe/fast_knn/multi_domain_paper/koran/bpe/de-en-bin/train_de_data_stores/token_6076']
-    
+        
     if (args.num_workers <= 1):
         with tqdm(total=len(file_list)) as pbar:
             for file in file_list:
-                '''
-                print("====")
                 print(file)
-                print("====")
-                '''
-                print(file)
-                build_cluster(data_store=file, cluster_size=args.cluster_size, use_gpu=args.use_gpu, use_tgt_cluster=args.use_tgt_cluster)
+                build_cluster(data_store=file, cluster_size=args.cluster_size, use_gpu=args.use_gpu)
                 pbar.update(1)
     else:
         pool = multiprocessing.Pool(args.num_workers)
         queue = multiprocessing.Manager().Queue()
 
         for file in file_list:
-            pool.apply_async(build_cluster, args=(file, args.cluster_size, 20, args.use_gpu, args.use_tgt_cluster, queue,))
+            pool.apply_async(build_cluster, args=(file, args.cluster_size, 100, args.use_gpu, queue,))
         
         pool.close()
 

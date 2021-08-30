@@ -126,7 +126,7 @@ sed -n "${val_start},${val_end}p;${val_end_plus}q" $bidirect >$DATA_DIR/valid.bi
 
 # fairseq preprocess
 TEXT=$prep
-joint_dict="/data/yuxian/models/wmt19/wmt19-de-en/dict.en.txt"
+joint_dict="/data/wangshuhe/fast_knn/models/dict.en.txt"
 rm $TEXT/de-en-bin/dict.en.txt
 rm $TEXT/de-en-bin/dict.de.txt
 fairseq-preprocess --source-lang de --target-lang en \
@@ -141,7 +141,7 @@ fairseq-preprocess --source-lang de --target-lang en \
 TEXT=$prep
 MODEL="/data/wangshuhe/fast_knn/models"
 LOG=$MODEL/eval_bleu_$DOMAIN.out
-CUDA_VISIBLE_DEVICES=3 fairseq-generate $TEXT/de-en-bin \
+CUDA_VISIBLE_DEVICES=1 fairseq-generate $TEXT/de-en-bin \
     --gen-subset "test" \
     --path $MODEL/wmt19.de-en.ffn8192.pt \
     --batch-size 1 --beam 5 --remove-bpe \
@@ -160,7 +160,7 @@ export PYTHONPATH="$PWD"
 for subset in "test" "valid" "train"; do
 TEXT=$prep
 MODEL="/data/wangshuhe/fast_knn/models/wmt19.de-en.ffn8192.pt"  # change your model path here
-CUDA_VISIBLE_DEVICES=2 python fairseq_cli/extract_feature_mmap.py $TEXT/de-en-bin \
+CUDA_VISIBLE_DEVICES=1 python fairseq_cli/extract_feature_mmap.py $TEXT/de-en-bin \
     --gen-subset $subset --store_decoder --store_encoder \
     --path $MODEL \
     --batch-size 4 --beam 1 --remove-bpe --score-reference

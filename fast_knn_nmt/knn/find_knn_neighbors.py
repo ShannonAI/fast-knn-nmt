@@ -104,10 +104,15 @@ def tgt_cluster(data_dir, mode="train", prefix="de-en", lang="de", k=5,
     tgt_hidden_size = json.load(open(os.path.join(data_dir, "train-features", "all.mmap.decoder.json")))["hidden_size"]
     if not use_memory:
         warmup_mmap_file(tgt_feature_mmap_file)
+
+    print("=======")
+    print(np.sum(neighbor_dataset.tgt_sizes), tgt_hidden_size)
+    print("=======")
+    
     tgt_mmap_features = np.memmap(tgt_feature_mmap_file, dtype=np.float32, mode='r',
                               shape=(np.sum(neighbor_dataset.tgt_sizes), tgt_hidden_size))
-    tgt_mmap_features_in_memory = np.zeros((np.sum(neighbor_dataset.tgt_sizes), tgt_hidden_size), dtype=np.float32)
-    tgt_mmap_features_in_memory[:] = tgt_mmap_features[:]
+    #tgt_mmap_features_in_memory = np.zeros((np.sum(neighbor_dataset.tgt_sizes), tgt_hidden_size), dtype=np.float32)
+    #tgt_mmap_features_in_memory[:] = tgt_mmap_features[:]
 
     pbar = tqdm(desc="Find KNN for each token", total=offset_end-offset_start)
     search_time = Value("search_time", 0.0)
@@ -121,11 +126,6 @@ def tgt_cluster(data_dir, mode="train", prefix="de-en", lang="de", k=5,
         return json.loads(new_line)
     
     tmp_cluster_list = [None for _ in range(total_token_num)]
-
-    '''
-    vis = {}
-    runtime_vis = {}
-    '''
 
     def run(features, o_start, o_end):
         if use_memory:
@@ -156,10 +156,6 @@ def tgt_cluster(data_dir, mode="train", prefix="de-en", lang="de", k=5,
             except FileNotFoundError:
                 LOGGING.error(f"skip token {token_idx}-{dictionary.symbols[token_idx]},"
                               f"which does not exist in training dataset")
-                '''
-                for i in range(positions.shape[0]):
-                    runtime_vis[positions[i]] = token_idx
-                '''
                 pbar.update(positions.shape[0])
                 return
             except RuntimeError:
@@ -168,11 +164,6 @@ def tgt_cluster(data_dir, mode="train", prefix="de-en", lang="de", k=5,
                 
                 pbar.update(positions.shape[0])
                 return
-
-            '''
-            for i in range(positions.shape[0]):
-                vis[positions[i]] = True
-            '''
 
             num = positions.shape[0]
             start = 0
@@ -224,16 +215,6 @@ def tgt_cluster(data_dir, mode="train", prefix="de-en", lang="de", k=5,
             start = tmp_end
     
     pbar.close()
-    '''
-    shuhe_tmp_cnt = 0
-    for i in range(total_token_num):
-        if (i not in vis and i in runtime_vis):
-            print("===")
-            print(i)
-            print(runtime_vis)
-            print("===")
-            shuhe_tmp_cnt += 1
-    '''
     neighbor_file = token_neighbor_path(data_dir, mode, lang, k, metric, cluster=True)
     neighbors = np.memmap(neighbor_file,
                         dtype=np.int64, mode="w+",
@@ -273,17 +254,18 @@ def tgt_cluster(data_dir, mode="train", prefix="de-en", lang="de", k=5,
             now_aligns = get_tgt_align(sent_idx=tgt_sent_idx, src_idx=tgt_token_idx)
             for now_align in now_aligns:
                 now_tgt_cluster_points.add((tgt_sent_idx, now_align))
-        now_tmp_tgt_cluster_feature = np.zeros((len(now_tgt_cluster_points), tgt_mmap_features_in_memory.shape[1]), dtype=tgt_mmap_features_in_memory.dtype)
+        now_tmp_tgt_cluster_feature = np.zeros((len(now_tgt_cluster_points), tgt_mmap_features.shape[1]), dtype=tgt_mmap_features.dtype)
         for idx_, (tgt_sent_idx, tgt_token_idx) in enumerate(now_tgt_cluster_points):
             tgt_offset = ntgt_sent_offsets[tgt_sent_idx] + tgt_token_idx
-            now_tmp_tgt_cluster_feature[idx_] = tgt_mmap_features_in_memory[tgt_offset]
+            now_tmp_tgt_cluster_feature[idx_] = tgt_mmap_features[tgt_offset]
         tmp_tgt_cluster_feature[now_idx] = np.mean(now_tmp_tgt_cluster_feature, axis=0)
         if (use_tgt_distance):
-            '''
+            
             # l2
             new_center_point = np.copy(tmp_tgt_cluster_feature[now_idx])
-            new_center_point = np.broadcast_to(new_center_point.reshape(1, tgt_mmap_features_in_memory.shape[1]), (len(now_tgt_cluster_points), tgt_mmap_features_in_memory.shape[1]))
+            new_center_point = np.broadcast_to(new_center_point.reshape(1, tgt_mmap_features.shape[1]), (len(now_tgt_cluster_points), tgt_mmap_features.shape[1]))
             tmp_distance[now_idx] = np.sqrt(np.sum(np.square(new_center_point-now_tmp_tgt_cluster_feature), axis=1))
+            
             '''
             # cosine similarity
             new_center_point = tmp_tgt_cluster_feature[now_idx].reshape(tmp_tgt_cluster_feature[now_idx].shape[0], 1)
@@ -291,11 +273,10 @@ def tgt_cluster(data_dir, mode="train", prefix="de-en", lang="de", k=5,
             norm1 = np.sqrt(np.sum(np.square(tmp_tgt_cluster_feature[now_idx]), axis=0)) # 1
             norm2 = np.sqrt(np.sum(np.square(now_tmp_tgt_cluster_feature), axis=1)) # cluster_num
             tmp_distance[now_idx] = sim / norm1 / norm2 # cluster_num
+            '''
 
         pbar.update(1)
     
-    #print(total_token_num, len(tmp_cluster_list))
-
     if (tgt_workers <= 1):
         for i in range(total_token_num):
             if (tmp_cluster_list[i] is not None):
@@ -306,8 +287,6 @@ def tgt_cluster(data_dir, mode="train", prefix="de-en", lang="de", k=5,
         pool = Pool(tgt_workers)
         jobs = []
         for i in range(total_token_num):
-            #print(total_token_num)
-            #print(tmp_cluster_list[i][1])
             if (tmp_cluster_list[i] is not None):
                 tmp_neighbors[i][:tmp_cluster_list[i][0]] = tmp_cluster_list[i][1]
                 job = pool.apply_async(func=get_center,
@@ -404,11 +383,16 @@ def main(data_dir, mode="train", prefix="de-en", lang="de", k=5, use_gpu=False,
     # store neighbors for each token
     neighbor_file = token_neighbor_path(data_dir, mode, lang, k, metric, global_neighbor=global_neighbor)
     read_mode = 'w+' if not os.path.exists(neighbor_file) else "r+"
-    neighbors = np.memmap(neighbor_file,
-                          dtype=np.int64, mode=read_mode,
-                          shape=(total_token_num, k, 2))
-    if read_mode == "w+":
-        neighbors.fill(-1)  # -1 for no neighbors
+    if (not args.use_cluster):
+        neighbors = np.memmap(neighbor_file,
+                            dtype=np.int64, mode=read_mode,
+                            shape=(total_token_num, k, 2))
+        if read_mode == "w+":
+            neighbors.fill(-1)  # -1 for no neighbors
+    
+    #tmp_neighbors = np.full((total_token_num, k, 2), fill_value=-1, dtype=np.int64)
+    if (args.use_cluster):
+        tmp_neighbors = [None for _ in range(total_token_num)]
 
     if args.pretrained_file:
         warmup_mmap_file(pretrained_file)
@@ -454,6 +438,7 @@ def main(data_dir, mode="train", prefix="de-en", lang="de", k=5, use_gpu=False,
         else:
             LOGGING.warning("We strongly recommend to use --use_memory to load feature to memory "
                             "to accelerate reading feartures")
+                            
         def find_token_neighbor(token_idx, search_time, batch_size=1024, token_use_gpu=False):
             # build data store for every token
             sent_ids = token_2d_offsets[token_idx][:, 0]
@@ -517,24 +502,16 @@ def main(data_dir, mode="train", prefix="de-en", lang="de", k=5, use_gpu=False,
                         batch_queris = batch_queris / np.sqrt(np.sum(batch_queris ** 2, axis=-1, keepdims=True))
                     t = time()
                     knn_dists, knns = knn_model.get_knns(queries=batch_queris, k=1)
-                    '''
-                    print(knns)
-                    print(batch_size)
-                    print(batch_positions.shape)
-                    print(max(knns[i][0] for i in range(batch_positions.shape[0])))
-                    print(max(knn_model.cluster_info['cluster_size'][knns[i][0]] for i in range(batch_positions.shape[0])))
-                    print(k)
-                    '''
                     search_time.value += (time() - t)
-                    '''
-                    print("======")
-                    print(batch_positions)
-                    print("=======")
                     '''
                     val_list = np.full((batch_positions.shape[0], neighbors.shape[1], 2), fill_value=-1, dtype=np.int64)
                     for i in range(batch_positions.shape[0]):
                         val_list[i][:knn_model.cluster_info['cluster_size'][knns[i][0]]] = knn_model.each_val[knns[i][0]]
                     neighbors[batch_positions, : knn_model.cluster_info['cluster_size'][knns[:, 0]]] = val_list
+                    '''
+                    for i in range(batch_positions.shape[0]):
+                        #tmp_neighbors[batch_positions[i]][:knn_model.cluster_info['cluster_size'][knns[i][0]]] = knn_model.each_val[knns[i][0]]
+                        tmp_neighbors[batch_positions[i]] = knn_model.each_val[knns[i][0]]
                     pbar.update(batch_positions.shape[0])
                     start += batch_size
 
@@ -565,6 +542,24 @@ def main(data_dir, mode="train", prefix="de-en", lang="de", k=5, use_gpu=False,
             LOGGING.info(f"Building datastore from offset {start} to {tmp_end}")
             run(mmap_features, start, tmp_end)
             start = tmp_end
+    
+    if (args.use_cluster):
+        print("save neighbors ...")
+        #neighbors[:] = tmp_neighbors[:]
+        max_cluster_num = max(int(sub_neighbor.shape[0]) if sub_neighbor is not None else 0 for sub_neighbor in tmp_neighbors)
+        tmp_neighbors_in_memeory = np.full((total_token_num, max_cluster_num, 2), fill_value=-1, dtype=np.int64)
+        for idx_ in range(total_token_num):
+            if (tmp_neighbors[idx_] is not None):
+                tmp_neighbors_in_memeory[idx_][:tmp_neighbors[idx_].shape[0]] = tmp_neighbors[idx_]
+        neighbors = np.memmap(neighbor_file,
+                            dtype=np.int64, mode=read_mode,
+                            shape=(total_token_num, max_cluster_num, 2))
+        neighbors[:] = tmp_neighbors_in_memeory[:]
+
+        neighbor_cluster_info = {"max_cluster_num": max_cluster_num}
+        json.dump(neighbor_cluster_info, open(os.path.join(data_dir, "neighbor_max_cluster_num_info.json"), "w"),
+                    sort_keys=True, indent=4, ensure_ascii=False)
+    
 
     LOGGING.info(f"Total search time: {search_time}s")
 
@@ -602,20 +597,6 @@ if __name__ == '__main__':
     parser.add_argument("--use-tgt-distance", action="store_true", help="use the distance to center as the score")
     parser.add_argument("--tgt-workers", type=int, default=1, help="number of threads used in finding tgt center")
     args = parser.parse_args()
-    '''
-    args.data_dir = "/data/wangshuhe/fast_knn/multi_domain_paper/koran/bpe/de-en-bin"
-    args.prefix = "de-en"
-    args.lang = "de"
-    args.use_memory = True
-    args.offset_chunk = 1000000
-    args.mode = "test"
-    args.workers = 0
-    args.k = 512
-    args.metric = "cosine"
-    args.nprobe = 32
-    args.use_gpu = True
-    args.use_cluster = True
-    '''
     data_dir = args.data_dir
     main(data_dir=data_dir, prefix=args.prefix, lang=args.lang, mode=args.mode, workers=args.workers,
          use_gpu=args.use_gpu, pretrained_file=args.pretrained_file, pretrained_num=args.pretrained_num,
@@ -623,13 +604,3 @@ if __name__ == '__main__':
          neighbor_subset=args.neighbor_subset, max_sent=args.max_sent, use_memory=args.use_memory,
          offset_start=args.offset_start, offset_end=args.offset_end, offset_chunk=args.offset_chunk, use_cluster=args.use_cluster, 
          use_tgt_cluster=args.use_tgt_cluster, use_tgt_distance=args.use_tgt_distance, tgt_workers=args.tgt_workers)
-
-
-
-'''
-\
---use-cluster \
---use-tgt-cluster \
---use-tgt-distance \
---tgt-workers 12
-'''

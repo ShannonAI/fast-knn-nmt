@@ -28,7 +28,7 @@ class KNNModel(object):
 
     def __init__(self, index_file, dstore_dir, probe: int = 32, no_load_keys: bool = False,
                  metric_type: str = "do_not_recomp_l2", sim_func: str = None, k: int = 1024, cuda: int = -1,
-                 use_memory=False, efsearch=8, use_cluster=False):
+                 use_memory=False, efsearch=8, use_cluster=False, use_tgt_cluster=False):
 
         self.index_file = index_file
         self.dstore_dir = dstore_dir
@@ -67,6 +67,20 @@ class KNNModel(object):
             self.vals_id = get_json_info(os.path.join(dstore_dir, "cluster_key_offset.json"))
             self.each_val = []
             self.each_val_num = self.cluster_info['cluster_size']
+
+            if (use_tgt_cluster):
+                self.cluster_tgt_info = get_json_info(os.path.join(dstore_dir, "cluster_tgt_info.json"))
+                keys_file = os.path.join(dstore_dir, "cluster_center_tgt.npy")
+                self.keys = np.memmap(keys_file, 
+                                dtype=np.float16 if self.dstore_fp16 else np.float32,
+                                mode="w+",
+                                shape=(self.dstore_size, self.hidden_size))
+                distance_file = os.path.join(dstore_dir, "target_cluster_distance.npy")
+                self.distance = np.memmap(distance_file,
+                                    dtype=np.float32, mode="w+",
+                                    shape=(self.dstore_size, self.cluster_tgt_info['val_size']))
+                self.each_tgt_distance_num = self.cluster_tgt_info['cluster_size']
+
             for id_list in self.vals_id:
                 point_list = []
                 for id_ in id_list:

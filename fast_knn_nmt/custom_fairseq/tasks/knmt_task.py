@@ -50,6 +50,8 @@ class KNNTranslationTask(TranslationTask):
                             help="if True, use last_ffn feature")
         parser.add_argument("--global_neighbor", action="store_true", default=False,
                             help="if True, use global neighbor")
+        parser.add_argument("--use_cluster", action="store_true", default=False,
+                            help="to use k-means")
         parser.add_argument("--use_tgt_cluster", action="store_true", default=False,
                             help="to cluster in target tokens")
         parser.add_argument("--use_tgt_distance", action="store_true", default=False,
@@ -166,12 +168,21 @@ class KNNTranslationTask(TranslationTask):
         # num_nsrc_tokens = np.sum(neighbor_dataset.src_sizes) if neighbor_dataset else num_src_tokens
         num_ntgt_tokens = np.sum(neighbor_dataset.tgt_sizes) if neighbor_dataset else np.sum(pair_dataset.tgt_sizes)
         if (not self.args.use_tgt_cluster):
-            neighbors = MmapDataset(
-                neighbor_file,
-                dtype=np.int64,
-                shape=(num_tgt_tokens if self.args.tgt_neighbor else num_src_tokens, max_neighbors, 2),
-                warmup=warmup
-            )
+            if (not self.args.use_cluster):
+                neighbors = MmapDataset(
+                    neighbor_file,
+                    dtype=np.int64,
+                    shape=(num_tgt_tokens if self.args.tgt_neighbor else num_src_tokens, max_neighbors, 2),
+                    warmup=warmup
+                )
+            else:
+                max_cluster_neighbor_num = json.load(open(os.path.join(data_path, "neighbor_max_cluster_num_info.json")))["max_cluster_num"]
+                neighbors = MmapDataset(
+                    neighbor_file,
+                    dtype=np.int64,
+                    shape=(num_tgt_tokens if self.args.tgt_neighbor else num_src_tokens, max_cluster_neighbor_num, 2),
+                    warmup=warmup
+                )
         else:
             tgt_cluster_info_file = os.path.join(data_path, f"{split}.{self.args.source_lang}.token_neighbor_cluster_info.json")
 

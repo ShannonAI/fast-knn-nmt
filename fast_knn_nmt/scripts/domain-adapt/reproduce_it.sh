@@ -1,8 +1,8 @@
 export PYTHONPATH=$PWD
-USER_DIR="/home/mengyuxian/fast-knn-nmt/fast_knn_nmt/custom_fairseq"
+USER_DIR="/home/wangshuhe/shuhework/fast-knn-nmt/fast_knn_nmt/custom_fairseq"
 DOMAIN="it"
-DATA_DIR="/data/yuxian/datasets/multi_domain_paper/${DOMAIN}/bpe/de-en-bin"
-OUT_DIR="/data/yuxian/train_logs/wmt19-it-quantize"
+DATA_DIR="/data/wangshuhe/fast_knn/multi_domain_paper/it/bpe/de-en-bin"
+OUT_DIR="/data/wangshuhe/fast_knn/train_logs/it"
 QUANTIZER=$DATA_DIR/quantizer-decoder.new
 
 a=0.6
@@ -11,20 +11,24 @@ top=64
 t=0.02
 ngram=0
 subset="test"
-sim_metric="cosine"
-neighbor_metric="cosine"
+sim_metric="l2"
+neighbor_metric="l2"
 
 
-PRED=$OUT_DIR/${DOMAIN}-0528-${subset}_bleu.gen_a${a}_t${t}_k${k}_sim_metric${sim_metric}_top${top}_ngram${ngram}_nmetric${neighbor_metric}_newknn
-CUDA_VISIBLE_DEVICES=0 python fast_knn_nmt/custom_fairseq/train/generate.py $DATA_DIR --gen-subset $subset --quantize \
+DETOKENIZER=/home/wangshuhe/shuhelearn/mosesdecoder-master/scripts/tokenizer/detokenizer.perl
+for a in 0.225 0.226 0.227 0.228 0.229 0.23 0.231 0.232 0.233 0.234 0.235;do
+for t in 0.61 0.62 0.63 0.64 0.65 0.66 0.67 0.68 0.69 0.7;do
+echo a $a t $t
+PRED=$OUT_DIR/${DOMAIN}-0805-tgt_distance-${subset}_bleu.gen_a${a}_t${t}_k${k}_sim_metric${sim_metric}_top${top}_ngram${ngram}_nmetric${neighbor_metric}_newknn
+CUDA_VISIBLE_DEVICES=1 python fast_knn_nmt/custom_fairseq/train/generate.py $DATA_DIR --gen-subset $subset --quantize \
     --task knn-translation --neighbor_metric $neighbor_metric \
     --path $OUT_DIR/checkpoint_best.pt  \
     --user-dir $USER_DIR --model-overrides "{'link_ratio': $a, 'link_temperature': $t, 'topk': ${top}, 'sim_metric': '${sim_metric}', 'quantizer_path':'$QUANTIZER' } " \
-    --batch-size 1 --beam 5 --remove-bpe --num-workers 8 \
-    --max-neighbors $k  --extend_ngram $ngram  >$PRED 2>&1 & tail -f $PRED
+    --batch-size 3 --beam 5 --remove-bpe --num-workers 8 \
+    --max-neighbors $k  --extend_ngram $ngram  --use_cluster --use_tgt_cluster --use_tgt_distance >$PRED 2>&1
 
-
-DETOKENIZER=/data/nfsdata2/nlp_application/utils/moses_decoder/moses/scripts//tokenizer/detokenizer.perl  # set to moses decoder
 awk -F '\t'  '$1 ~ /^H/ {print substr($1, 3) "\t" $3}'  $PRED | sort -k1 -n | awk -F '\t' '{print $2}' | perl $DETOKENIZER -threads 8 -a -l en  >$PRED.pred
-gt_file="/data/yuxian/datasets/multi_domain_paper/${DOMAIN}/test.en"
-cat $PRED.pred | sacrebleu $gt_file
+gt_file="/data/wangshuhe/fast_knn/multi_domain_paper/${DOMAIN}/test.en"
+cat $PRED.pred | sacrebleu $gt_file >$OUT_DIR/sacrebleu_tgt_distance_0805_a${a}_t${t}_k${k}_top${top} 2>&1
+done
+done

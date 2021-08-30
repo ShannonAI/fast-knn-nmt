@@ -12,14 +12,14 @@ git clone https://github.com/rsennrich/subword-nmt.git
 # The above two repos need compilation before being used below.
 
 
-SCRIPTS=mosesdecoder/scripts
+SCRIPTS=/userhome/shuhe/shuhelearn/mosesdecoder/scripts
 TOKENIZER=$SCRIPTS/tokenizer/tokenizer.perl
 DETOKENIZER=$SCRIPTS/tokenizer/detokenizer.perl
 CLEAN=$SCRIPTS/training/clean-corpus-n.perl
 NORM_PUNC=$SCRIPTS/tokenizer/normalize-punctuation.perl
 REM_NON_PRINT_CHAR=$SCRIPTS/tokenizer/remove-non-printing-char.perl
 
-BPEROOT=/userhome/yuxian/fairseq/examples/translation/subword-nmt/subword_nmt
+BPEROOT=/userhome/shuhe/shuhelearn/subword-nmt/subword_nmt
 
 
 URLS=(
@@ -51,10 +51,12 @@ if [ ! -d "$SCRIPTS" ]; then
     exit
 fi
 
+OUTDIR=/userhome/shuhe/fast_knn_nmt/data/wmt14_en_fr_reproduce  # !Set your own path here!
+
 src=en
 tgt=fr
 lang=en-fr
-prep=wmt14_en_fr
+prep=$OUTDIR
 tmp=$prep/tmp
 orig=orig
 
@@ -66,6 +68,11 @@ for ((i=0;i<${#URLS[@]};++i)); do
     file=${FILES[i]}
     if [ -f $file ]; then
         echo "$file already exists, skipping download"
+        if [ ${file: -4} == ".tgz" ]; then
+            tar zxvf $file
+        elif [ ${file: -4} == ".tar" ]; then
+            tar xvf $file
+        fi
     else
         url=${URLS[i]}
         wget "$url"
@@ -93,7 +100,7 @@ for l in $src $tgt; do
         cat $orig/$f.$l | \
             perl $NORM_PUNC $l | \
             perl $REM_NON_PRINT_CHAR | \
-            perl $TOKENIZER -threads 8 -a -l $l >> $tmp/train.tags.$lang.tok.$l
+            perl $TOKENIZER -threads 64 -a -l $l >> $tmp/train.tags.$lang.tok.$l
     done
 done
 
@@ -104,11 +111,11 @@ for l in $src $tgt; do
     else
         t="ref"
     fi
-    grep '<seg id' $orig/test-full/newstest2014-enfr-$t.$l.sgm | \
+    grep '<seg id' $orig/test-full/newstest2014-fren-$t.$l.sgm | \
         sed -e 's/<seg id="[0-9]*">\s*//g' | \
         sed -e 's/\s*<\/seg>\s*//g' | \
         sed -e "s/\’/\'/g" | \
-    perl $TOKENIZER -threads 8 -a -l $l > $tmp/test.$l
+    perl $TOKENIZER -threads 32 -a -l $l > $tmp/test.$l
     echo ""
 done
 
@@ -120,7 +127,7 @@ done
 
 
 # wget https://dl.fbaipublicfiles.com/fairseq/models/wmt14.en-fr.joined-dict.transformer.tar.bz2
-BPE_CODE="/userhome/yuxian/train_logs/wmt14.en-fr.joined-dict.transformer/bpecodes"  # use downloaded fairseqmodel bpe
+BPE_CODE="/userhome/shuhe/fast_knn_nmt/models/wmt14_en_fr/wmt14.en-fr.joined-dict.transformer/bpecodes"  # use downloaded fairseqmodel bpe
 echo "use pretrained bpe ${BPE_CODE}"
 
 for L in $src $tgt; do
@@ -140,7 +147,7 @@ done
 
 # generate fast-align file
 # 1. merge src and tgt files to single file that meets fast_align requirements
-DATA_DIR=/userhome/yuxian/data/nmt/wmt14_en_fr/prep_pretrained
+DATA_DIR=$OUTDIR
 SRC="en"
 TGT="fr"
 
@@ -155,8 +162,8 @@ done
 cat $DATA_DIR/train.$SRC-$TGT $DATA_DIR/valid.$SRC-$TGT > $DATA_DIR/merge.$SRC-$TGT
 
 # 3. run fast-align
-FAST_ALIGN="fast_align/build/fast_align"
-ATOOLS="fast_align/build/atools"
+FAST_ALIGN="/userhome/shuhe/shuhelearn/fast_align/build/fast_align"
+ATOOLS="/userhome/shuhe/shuhelearn/fast_align/build/atools"
 input=$DATA_DIR/merge.$SRC-$TGT
 forward=$DATA_DIR/merge.forward.align
 backward=$DATA_DIR/merge.backward.align
@@ -178,33 +185,35 @@ sed -n "${val_start},${val_end}p;${val_end_plus}q" $bidirect >$DATA_DIR/valid.bi
 
 
 # fairseq preprocess (use your own path!)
-TEXT=/userhome/yuxian/data/nmt/wmt14_en_fr/prep_pretrained
-joint_dict="/userhome/yuxian/train_logs/wmt14.en-fr.joined-dict.transformer/dict.en.txt"
+TEXT=/userhome/shuhe/fast_knn_nmt/data/wmt14_en_fr_reproduce
+joint_dict="/userhome/shuhe/fast_knn_nmt/models/wmt14_en_fr/wmt14.en-fr.joined-dict.transformer/dict.en.txt"
 fairseq-preprocess --source-lang en --target-lang fr \
     --trainpref $TEXT/train --validpref $TEXT/valid --testpref $TEXT/test \
     --align-suffix bidirect.align \
     --joined-dictionary --srcdict $joint_dict \
-    --destdir $TEXT/en-fr-bin-align \
-    --workers 16 \
+    --destdir $TEXT/en-fr-bin \
+    --workers 64 \
 
 
 # fairseq generate, to check model validity (use your own path!)
-TEXT=/userhome/yuxian/data/nmt/wmt14_en_fr/prep_pretrained/en-fr-bin
-MODEL=/userhome/yuxian/train_logs/wmt14.en-fr.joined-dict.transformer/
+TEXT=/userhome/shuhe/fast_knn_nmt/data/wmt14_en_fr_reproduce/en-fr-bin
+MODEL=/userhome/shuhe/fast_knn_nmt/models/wmt14_en_fr/wmt14.en-fr.joined-dict.transformer/
 LOG=$MODEL/pred.txt
 fairseq-generate $TEXT \
     --gen-subset "test" \
     --path $MODEL/model.pt \
     --batch-size 128 --beam 5 --remove-bpe --eval-bleu-detok "moses" \
     --scoring "sacrebleu" \
-    >$LOG 2>&1 & tail -f $LOG
+    >$LOG 2>&1
 
 # extract features (use your own path!)
+export PYTHONPATH="$PWD"
 for subset in "test" "valid" "train"; do
-TEXT=/userhome/yuxian/data/nmt/wmt14_en_fr/prep_pretrained/en-fr-bin
-MODEL=/userhome/yuxian/train_logs/wmt14.en-fr.joined-dict.transformer/model.pt
+TEXT=/userhome/shuhe/fast_knn_nmt/data/wmt14_en_fr_reproduce/en-fr-bin
+MODEL=/userhome/shuhe/fast_knn_nmt/models/wmt14_en_fr/wmt14.en-fr.joined-dict.transformer/model.pt
 CUDA_VISIBLE_DEVICES=0 python fairseq_cli/extract_feature_mmap.py $TEXT \
     --gen-subset $subset --store_encoder --store_decoder \
     --path $MODEL \
     --batch-size 64 --beam 1 --remove-bpe --score-reference
 done
+

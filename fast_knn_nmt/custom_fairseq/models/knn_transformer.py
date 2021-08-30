@@ -198,10 +198,6 @@ class KNNTransformerEncoder(TransformerEncoder):
             x = self.layer_norm(x)
 
         knn_cluster = kwargs["knn_cluster"]
-        if (knn_cluster is not None):
-            bsz, n, cl_n, d = knn_cluster.size()
-            if self.quantizer is not None and knn_cluster.dtype == torch.uint8:
-                knn_cluster = self.quantizer.decode(knn_cluster.view(-1, d)).view(bsz, n, cl_n, -1)
 
         knn_feats = kwargs["knn_feats"]  # [B, N, h or M]  # todo: 直接在tgt处encode decoder hidden可能更快？
         if (knn_cluster is None):
@@ -319,6 +315,10 @@ class KNNTransformerEncoder(TransformerEncoder):
 class KNNTransformerDecoder(TransformerDecoder):
     def __init__(self, args, dictionary, embed_tokens, no_encoder_attn=False):
         super(KNNTransformerDecoder, self).__init__(args, dictionary, embed_tokens, no_encoder_attn)
+        if args.quantizer_path:
+            self.quantizer = TorchPQCodec(index=faiss.read_index(args.quantizer_path))
+        else:
+            self.quantizer = None
 
         self.eos_idx = dictionary.eos_index
         self.num_classes = len(dictionary)
@@ -396,7 +396,7 @@ class KNNTransformerDecoder(TransformerDecoder):
             features: [bsz, tgt_len, h]
             knn-feats: [bsz, knn_num, h]
             knn_labels: [bsz, knn_num, knn_cluster_num] / [bsz, knn_num]
-            knn_cluster: [bsz, knn_num, knn_cluster_num, h]
+            knn_cluster: [bsz, knn_num, knn_cluster_num, quan_h]
             knn_mask: [bsz, knn_num]
             knn_distance: [bsz, knn_num, knn_cluster_num]
         Returns:
@@ -446,14 +446,20 @@ class KNNTransformerDecoder(TransformerDecoder):
             # cluster only support cosine
             knn_num = knn_feats.shape[1]
             tgt_len = features.shape[1]
-            hidden_size = knn_cluster.shape[-1]
+            hidden_size = knn_feats.shape[-1]
             cluster_num = knn_cluster.shape[2]
-
+            
+            '''
+            # cosine
             knn_feats = knn_feats.transpose(1, 2)  # [bsz, h, knn_num]
             sim = torch.bmm(features, knn_feats)  # [bsz, tgt_len, knn_num]
             norm1 = (knn_feats ** 2).sum(dim=1, keepdim=True).sqrt()  # [bsz, 1, knn_num]
             norm2 = (features ** 2).sum(dim=2, keepdim=True).sqrt()  # [bsz, tgt_len, 1]
             scores = sim / (norm1 + 1e-10) / (norm2 + 1e-10)  # [bsz, tgt_len, knn_num]
+            '''
+            # l2
+            # [bsz, tgt_len, 1, h] - [bsz, 1, knn_num, h]
+            scores = -((features.unsqueeze(dim=2) - knn_feats.unsqueeze(dim=1)) ** 2).sum(-1) # [bsz, tgt_len, knn_num]
 
             mask = (knn_mask == -1).unsqueeze(1)  # [bsz, 1, knn_num]
             scores[mask.expand(-1, tgt_len, -1)] -= 1e10
@@ -461,9 +467,15 @@ class KNNTransformerDecoder(TransformerDecoder):
             topk_scores, topk_idxs = torch.topk(scores, dim=-1, k=1)  # [bsz, tgt_len, 1]
 
             if (knn_distance is None):
+                quan_h = knn_cluster.shape[-1]
+
                 topk_cluster = topk_idxs.unsqueeze(dim=-1) # [bsz, tgt_len, 1, 1]
-                topk_cluster = topk_cluster.expand(-1, tgt_len, cluster_num, hidden_size) # [bsz, tgt_len, cluster_num, h]
-                select_knn_cluster = torch.gather(knn_cluster, dim=1, index=topk_cluster) # [bsz, tgt_len, cluster_num, h]
+                topk_cluster = topk_cluster.expand(-1, tgt_len, cluster_num, quan_h) # [bsz, tgt_len, cluster_num, quan_h]
+                # knn_cluster [bsz, knn_num, cluster_num, quan_h]
+                select_knn_cluster = torch.gather(knn_cluster, dim=1, index=topk_cluster) # [bsz, tgt_len, cluster_num, quan_h]
+
+                if self.quantizer is not None and knn_cluster.dtype == torch.uint8:
+                    select_knn_cluster = self.quantizer.decode(select_knn_cluster.view(-1, quan_h)).view(-1, tgt_len, cluster_num, hidden_size)
 
                 topk_label = topk_idxs.expand(-1, tgt_len, cluster_num) # [bsz, tgt_len, cluster_num]
                 select_knn_label = torch.gather(knn_labels, dim=1, index=topk_label) # [bsz, tgt_len, cluster_num]
@@ -478,6 +490,11 @@ class KNNTransformerDecoder(TransformerDecoder):
                 label_mask = (select_knn_label == self.padding_idx) # [bsz, tgt_len, cluster_num]
                 scores[label_mask] -= 1e10
 
+                if knn_num > self.topk > 0:
+                    topk_scores, topk_idxs = torch.topk(scores, dim=-1, k=self.topk)  # [bsz, tgt_len, topk]
+                    scores = topk_scores
+                    select_knn_label = select_knn_label.gather(dim=-1, index=topk_idxs)  # [bsz, tgt_len, topk]
+
                 sim_probs = torch.softmax(scores / self.link_temperature, dim=-1)  # [bsz, tgt_len, cluster_num]
                 output = torch.zeros_like(sim_probs[:, :, 0]).unsqueeze(-1).repeat([1, 1, self.num_classes])  # [bsz, tgt_len, V]
                 output = output.scatter_add(dim=2, index=select_knn_label, src=sim_probs)
@@ -486,12 +503,17 @@ class KNNTransformerDecoder(TransformerDecoder):
                 topk_label = topk_idxs.expand(-1, tgt_len, cluster_num) # [bsz, tgt_len, cluster_num]
                 select_knn_label = torch.gather(knn_labels, dim=1, index=topk_label) # [bsz, tgt_len, cluster_num]
                 select_knn_distance = torch.gather(knn_distance, dim=1, index=topk_label) # [bsz, tgt_len, cluster_num]
-                #scores = -select_knn_distance
-                scores = select_knn_distance
+                scores = -select_knn_distance
+                #scores = select_knn_distance
 
                 label_mask = (select_knn_label == self.padding_idx) # [bsz, tgt_len, cluster_num]
                 #scores[label_mask] += 1e10
                 scores[label_mask] -= 1e10
+
+                if knn_num > self.topk > 0:
+                    topk_scores, topk_idxs = torch.topk(scores, dim=-1, k=self.topk)  # [bsz, tgt_len, topk]
+                    scores = topk_scores
+                    select_knn_label = select_knn_label.gather(dim=-1, index=topk_idxs)  # [bsz, tgt_len, topk]
 
                 sim_probs = torch.softmax(scores / self.link_temperature, dim=-1)  # [bsz, tgt_len, cluster_num]
                 output = torch.zeros_like(sim_probs[:, :, 0]).unsqueeze(-1).repeat([1, 1, self.num_classes])  # [bsz, tgt_len, V]

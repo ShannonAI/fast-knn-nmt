@@ -31,6 +31,7 @@ class IndexBuilder:
         self.use_gpu = use_gpu
         self.metric = metric
         self.suffix = suffix
+        self.use_cluster = use_cluster
         if (not use_cluster):
             self.dstore = DataStore.from_pretrained(dstore_dir, mode="r", warmup=False)
         else:
