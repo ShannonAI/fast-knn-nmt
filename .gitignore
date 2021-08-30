@@ -128,6 +128,7 @@ data-bin/
 .vscode/ftp-sync.json
 .vscode/settings.json
 .vscode/*
+.pred
 
 # Experimental Folder
 experimental/*
